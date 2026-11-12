@@ -1,0 +1,106 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getSessionUser, setSession } from '../lib/auth';
+import { verifyPassword } from '../lib/db';
+
+const user = getSessionUser(Astro);
+if (user) {
+  return Astro.redirect('/login-success');
+}
+
+let statusMessage = '';
+let statusType = ''; // 'success' | 'error'
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+    const username = data.get('username')?.toString()?.trim();
+    const password = data.get('password')?.toString();
+
+    if (!username || !password) {
+      statusType = 'error';
+      statusMessage = 'Login Unsuccessful: Please enter both username and password.';
+    } else {
+      const isValid = verifyPassword(username, password);
+      if (isValid) {
+        setSession(Astro, username);
+        statusType = 'success';
+        statusMessage = 'Login Successful! Redirecting...';
+        return Astro.redirect('/login-success');
+      } else {
+        statusType = 'error';
+        statusMessage = 'Login Unsuccessful: Invalid username or password.';
+      }
+    }
+  } catch (err: any) {
+    statusType = 'error';
+    statusMessage = `Login Unsuccessful: ${err.message || 'An error occurred during login.'}`;
+  }
+}
+---
+
+<Layout>
+  <div class="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100 font-sans text-slate-800 flex flex-col justify-center items-center px-6 py-12">
+    <!-- Centered Login Dialog Box -->
+    <div class="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-10 border border-sky-200/80 transform transition-all duration-300">
+      
+      <!-- Brand Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+          Brand New Everyday
+        </h1>
+        <p class="text-slate-500 text-sm sm:text-base font-medium mt-2">
+          Please sign in to continue
+        </p>
+      </div>
+
+      <!-- Status Indicator -->
+      {statusMessage && (
+        <div class={`mb-6 p-4 rounded-2xl text-sm font-semibold border shadow-sm transition-all duration-200 ${
+          statusType === 'success'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          {statusMessage}
+        </div>
+      )}
+
+      <!-- Login Form -->
+      <form method="POST" class="space-y-6">
+        <div class="space-y-2">
+          <label class="block text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-600">
+            Username
+          </label>
+          <input
+            type="text"
+            name="username"
+            required
+            class="w-full px-4 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 text-sm sm:text-base placeholder-slate-400 transition-all shadow-inner"
+            placeholder="Enter your username"
+          />
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-600">
+            Password
+          </label>
+          <input
+            type="password"
+            name="password"
+            required
+            class="w-full px-4 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 text-sm sm:text-base placeholder-slate-400 transition-all shadow-inner"
+            placeholder="••••••••"
+          />
+        </div>
+
+        <button
+          type="submit"
+          class="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 active:scale-[0.98] text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+        >
+          Sign In
+        </button>
+      </form>
+
+    </div>
+  </div>
+</Layout>

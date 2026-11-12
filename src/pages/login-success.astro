@@ -1,0 +1,51 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getSessionUser } from '../lib/auth';
+
+const user = getSessionUser(Astro);
+if (!user) {
+  return Astro.redirect('/login');
+}
+---
+
+<Layout>
+  <div class="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100 text-slate-800 flex flex-col justify-center items-center px-4">
+    <div class="max-w-md w-full bg-white/85 backdrop-blur-md rounded-2xl shadow-xl p-8 border border-sky-200 text-center space-y-6">
+      <div class="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+
+      <div>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Login Successful</h1>
+        <p class="text-slate-600 mt-2">Welcome to <span class="font-bold text-slate-800">Brand New Everyday</span>, <span class="font-semibold text-blue-600">{user.username}</span>!</p>
+      </div>
+
+      <div class="pt-4 space-y-3">
+        <a
+          href="/"
+          class="w-full inline-block py-3 px-4 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 transition duration-200"
+        >
+          Go to Dashboard
+        </a>
+
+        {user.is_admin === 1 && (
+          <a
+            href="/admin"
+            class="w-full inline-block py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/25 transition duration-200"
+          >
+            Admin Panel (Manage Users & Settings)
+          </a>
+        )}
+
+        <a
+          href="/api/logout"
+          class="w-full inline-block py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition duration-200 text-sm"
+        >
+          Logout
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>
