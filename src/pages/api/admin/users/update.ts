@@ -2,8 +2,8 @@ import type { APIRoute } from 'astro';
 import { getSessionUser } from '../../../../lib/auth';
 import { updateUsername, getUserByUsername } from '../../../../lib/db';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
-  const currentUser = getSessionUser({ cookies });
+export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const currentUser = await getSessionUser({ cookies, locals });
   if (!currentUser || currentUser.is_admin !== 1) {
     return new Response(JSON.stringify({ message: 'Unauthorized: Admin access required' }), {
       status: 403,
@@ -23,7 +23,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const existing = getUserByUsername(newUsername);
+    const d1 = (locals as any)?.runtime?.env?.DB;
+    const existing = await getUserByUsername(d1, newUsername);
     if (existing) {
       return new Response(JSON.stringify({ message: 'New username is already taken' }), {
         status: 400,
@@ -31,7 +32,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    updateUsername(oldUsername, newUsername);
+    await updateUsername(d1, oldUsername, newUsername);
 
     return new Response(JSON.stringify({ success: true, message: `Username updated from ${oldUsername} to ${newUsername}.` }), {
       status: 200,

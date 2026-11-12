@@ -2,8 +2,8 @@ import type { APIRoute } from 'astro';
 import { getSessionUser } from '../../../../lib/auth';
 import { createUser, getUserByUsername } from '../../../../lib/db';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
-  const currentUser = getSessionUser({ cookies });
+export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const currentUser = await getSessionUser({ cookies, locals });
   if (!currentUser || currentUser.is_admin !== 1) {
     return new Response(JSON.stringify({ message: 'Unauthorized: Admin access required' }), {
       status: 403,
@@ -24,7 +24,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const existing = getUserByUsername(username);
+    const d1 = (locals as any)?.runtime?.env?.DB;
+    const existing = await getUserByUsername(d1, username);
     if (existing) {
       return new Response(JSON.stringify({ message: 'Username already exists' }), {
         status: 400,
@@ -32,7 +33,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    createUser(username, password, isAdmin);
+    await createUser(d1, username, password, isAdmin);
 
     return new Response(JSON.stringify({ success: true, message: `User ${username} created successfully.` }), {
       status: 200,

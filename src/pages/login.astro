@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import { getSessionUser, setSession } from '../lib/auth';
 import { verifyPassword } from '../lib/db';
 
-const user = getSessionUser(Astro);
+const user = await getSessionUser(Astro);
 if (user) {
   return Astro.redirect('/login-success');
 }
@@ -21,7 +21,8 @@ if (Astro.request.method === 'POST') {
       statusType = 'error';
       statusMessage = 'Login Unsuccessful: Please enter both username and password.';
     } else {
-      const isValid = verifyPassword(username, password);
+      const d1 = (Astro.locals as any)?.runtime?.env?.DB;
+      const isValid = await verifyPassword(d1, username, password);
       if (isValid) {
         setSession(Astro, username);
         statusType = 'success';

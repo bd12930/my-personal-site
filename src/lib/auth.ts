@@ -3,13 +3,14 @@ import { getUserByUsername, type User } from './db';
 
 const SESSION_COOKIE_NAME = 'site_session';
 
-export function getSessionUser(context: APIContext | { cookies: Astro.Cookies }): (User & { is_admin: number }) | null {
+export async function getSessionUser(context: APIContext | { cookies: Astro.Cookies; locals?: any }): Promise<(User & { is_admin: number }) | null> {
   const cookie = context.cookies.get(SESSION_COOKIE_NAME);
   if (!cookie || !cookie.value) return null;
 
   try {
     const username = Buffer.from(cookie.value, 'base64').toString('utf-8');
-    const user = getUserByUsername(username);
+    const d1 = (context as any).locals?.runtime?.env?.DB;
+    const user = await getUserByUsername(d1, username);
     if (!user) return null;
     return {
       id: user.id,

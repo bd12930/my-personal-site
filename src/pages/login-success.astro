@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import { getSessionUser } from '../lib/auth';
 
-const user = getSessionUser(Astro);
+const user = await getSessionUser(Astro);
 if (!user) {
   return Astro.redirect('/login');
 }

@@ -3,13 +3,15 @@ import Layout from '../layouts/Layout.astro';
 import { getSessionUser } from '../lib/auth';
 import { getAllUsers } from '../lib/db';
 
-const user = getSessionUser(Astro);
+const user = await getSessionUser(Astro);
 if (!user) {
   return Astro.redirect('/login');
 }
 
 let message = '';
 let error = '';
+
+const d1 = (Astro.locals as any)?.runtime?.env?.DB;
 
 if (user.is_admin === 1 && Astro.request.method === 'POST') {
   try {
@@ -42,7 +44,7 @@ if (user.is_admin === 1 && Astro.request.method === 'POST') {
   }
 }
 
-const allUsers = user.is_admin === 1 ? getAllUsers() : [];
+const allUsers = user.is_admin === 1 ? await getAllUsers(d1) : [];
 ---
 
 <Layout>

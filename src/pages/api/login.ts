@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { verifyPassword } from '../../lib/db';
 import { setSession } from '../../lib/auth';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async ({ request, cookies, locals }) => {
   try {
     const data = await request.formData();
     const username = data.get('username')?.toString()?.trim();
@@ -15,7 +15,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const isValid = verifyPassword(username, password);
+    const d1 = (locals as any)?.runtime?.env?.DB;
+    const isValid = await verifyPassword(d1, username, password);
     if (!isValid) {
       return new Response(JSON.stringify({ message: 'Invalid username or password' }), {
         status: 401,

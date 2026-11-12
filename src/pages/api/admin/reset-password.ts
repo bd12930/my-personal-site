@@ -2,8 +2,8 @@ import type { APIRoute } from 'astro';
 import { getSessionUser } from '../../../lib/auth';
 import { updateUserPassword, getUserByUsername } from '../../../lib/db';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
-  const currentUser = getSessionUser({ cookies });
+export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const currentUser = await getSessionUser({ cookies, locals });
   if (!currentUser || currentUser.is_admin !== 1) {
     return new Response(JSON.stringify({ message: 'Unauthorized: Admin access required' }), {
       status: 403,
@@ -23,7 +23,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const targetUser = getUserByUsername(targetUsername);
+    const d1 = (locals as any)?.runtime?.env?.DB;
+    const targetUser = await getUserByUsername(d1, targetUsername);
     if (!targetUser) {
       return new Response(JSON.stringify({ message: 'User not found' }), {
         status: 404,
@@ -31,7 +32,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    updateUserPassword(targetUsername, newPassword);
+    await updateUserPassword(d1, targetUsername, newPassword);
 
     return new Response(JSON.stringify({ success: true, message: `Password for ${targetUsername} successfully reset.` }), {
       status: 200,
