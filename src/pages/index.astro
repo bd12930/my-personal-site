@@ -1,163 +1,545 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SecurityInactivityTimer from '../components/SecurityInactivityTimer.astro';
 import { env } from 'cloudflare:workers';
 import { getSessionUser } from '../lib/auth';
-import { getAllUsers, getUserByUsername, updateUserPassword } from '../lib/db';
+import { createCheckIn, getUserByUsername } from '../lib/db';
+import { getDailyDevotion } from '../lib/devotions';
 
 const user = await getSessionUser(Astro);
 if (!user) {
   return Astro.redirect('/login');
 }
 
-let message = '';
-let error = '';
-
 const d1 = (env as any)?.DB;
+const todayDevotion = getDailyDevotion(new Date());
 
-if (user.is_admin === 1 && Astro.request.method === 'POST') {
+let successMessage = '';
+let errorMessage = '';
+
+if (Astro.request.method === 'POST') {
   try {
     const data = await Astro.request.formData();
     const action = data.get('action');
 
-    if (action === 'reset_password') {
-      const targetUsername = data.get('username')?.toString()?.trim();
-      const newPassword = data.get('new_password')?.toString();
+    if (action === 'submit_checkin') {
+      const stateOfMind = data.get('state_of_mind')?.toString()?.trim() || 'Pleasant';
+      const struggle = data.get('struggle')?.toString()?.trim() || 'None';
+      const countBlessing = data.get('count_blessing')?.toString()?.trim() || "I'm loved by God";
+      const prayerRequest = data.get('prayer_request')?.toString()?.trim() || "Lord's Prayer";
+      const aob = data.get('aob')?.toString()?.trim() || '';
 
-      if (!targetUsername || !newPassword) {
-        error = 'Target username and new password are required.';
-      } else {
-        const targetUser = await getUserByUsername(d1, targetUsername);
-        if (!targetUser) {
-          error = 'User not found.';
-        } else {
-          await updateUserPassword(d1, targetUsername, newPassword);
-          message = `Password successfully updated for ${targetUsername}.`;
-        }
-      }
+      const devotionTitle = data.get('devotion_title')?.toString()?.trim() || todayDevotion.title;
+      const devotionPassage = data.get('devotion_passage')?.toString()?.trim() || todayDevotion.passage;
+      const devotionText = data.get('devotion_text')?.toString()?.trim() || todayDevotion.reflection;
+
+      await createCheckIn(d1, {
+        user_id: user.id,
+        username: user.username,
+        state_of_mind: stateOfMind,
+        struggle,
+        count_blessing: countBlessing,
+        prayer_request: prayerRequest,
+        aob,
+        devotion_title: devotionTitle,
+        devotion_passage: devotionPassage,
+        devotion_text: devotionText,
+        created_at: new Date().toISOString()
+      });
+
+      successMessage = 'Your check-in has been recorded! Thank you for sharing with the family.';
     }
   } catch (err: any) {
-    error = err.message || 'An error occurred.';
+    errorMessage = err.message || 'An error occurred while submitting your check-in.';
   }
 }
 
-const allUsers = user.is_admin === 1 ? await getAllUsers(d1) : [];
+const STATE_OPTIONS = [
+  { value: 'Very Unpleasant', label: 'Very Unpleasant', emoji: '😣', bg: 'bg-red-950/60 text-red-200 border-red-800' },
+  { value: 'Unpleasant', label: 'Unpleasant', emoji: '🙁', bg: 'bg-orange-950/60 text-orange-200 border-orange-800' },
+  { value: 'Slightly Unpleasant', label: 'Slightly Unpleasant', emoji: '😕', bg: 'bg-amber-950/60 text-amber-200 border-amber-800' },
+  { value: 'Neutral', label: 'Neutral', emoji: '😐', bg: 'bg-slate-800 text-slate-200 border-slate-700' },
+  { value: 'Slightly Pleasant', label: 'Slightly Pleasant', emoji: '🙂', bg: 'bg-teal-950/60 text-teal-200 border-teal-800' },
+  { value: 'Pleasant', label: 'Pleasant', emoji: '😊', bg: 'bg-emerald-950/60 text-emerald-200 border-emerald-800', isDefault: true },
+  { value: 'Very Pleasant', label: 'Very Pleasant', emoji: '😄', bg: 'bg-sky-950/60 text-sky-200 border-sky-800' },
+];
 ---
 
 <Layout>
-  <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-    <!-- Header Navbar -->
-    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
-      <div class="flex items-center space-x-3">
-        <span class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-          Brand New Everyday
-        </span>
-        {user.is_admin === 1 && (
-          <span class="bg-blue-900 text-blue-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-blue-700">
-            Admin
+  <SecurityInactivityTimer />
+  <div class="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col antialiased">
+    
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-800/95 backdrop-blur-md border-b border-slate-700/80 sticky top-0 z-30 px-4 sm:px-6 py-3.5 flex flex-wrap justify-between items-center gap-3 shadow-md">
+      <div class="flex items-center space-x-2.5">
+        <a href="/" class="flex items-center space-x-2 hover:opacity-90 transition">
+          <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-500/20">
+            ☀️
           </span>
-        )}
-      </div>
-      <div class="flex items-center space-x-4">
-        <span class="text-gray-300 text-sm">
-          Logged in as <strong class="text-white">{user.username}</strong>
+          <span class="text-lg sm:text-xl font-black bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-300 bg-clip-text text-transparent">
+            Brand New Everyday
+          </span>
+        </a>
+        <span class="hidden sm:inline-block text-xs bg-slate-700/80 text-slate-300 px-2.5 py-0.5 rounded-full font-medium border border-slate-600">
+          Family Check-In
         </span>
+      </div>
+
+      <nav class="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm font-semibold">
+        <a
+          href="/guide"
+          class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-600/80 transition flex items-center space-x-1.5"
+          title="How to Use & Family Purpose"
+        >
+          <span>💡</span>
+          <span>Guide</span>
+        </a>
+        <a
+          href="/history"
+          class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-600/80 transition flex items-center space-x-1.5"
+        >
+          <span>📜</span>
+          <span>History</span>
+        </a>
         {user.is_admin === 1 && (
           <a
             href="/admin"
-            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition duration-200"
+            class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 rounded-xl border border-indigo-700/60 transition"
           >
-            Admin Panel
+            Admin
           </a>
         )}
         <a
           href="/api/logout"
-          class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition duration-200"
+          class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-xl transition shadow-sm"
         >
           Logout
         </a>
-      </div>
+      </nav>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-1 max-w-5xl w-full mx-auto p-6 space-y-6">
-      {message && (
-        <div class="p-4 bg-green-900/50 border border-green-500 text-green-200 rounded-lg text-sm">
-          {message}
+    <!-- Main Container -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6 min-w-0">
+
+      <!-- Success / Error Feedback Alerts -->
+      {successMessage && (
+        <div class="p-4 sm:p-5 bg-emerald-950/80 border border-emerald-500 text-emerald-200 rounded-2xl text-sm font-semibold shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div class="flex items-center space-x-2.5">
+            <span class="text-xl">✅</span>
+            <span>{successMessage}</span>
+          </div>
+          <a
+            href="/history"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition shrink-0"
+          >
+            View in History →
+          </a>
         </div>
       )}
 
-      {error && (
-        <div class="p-4 bg-red-900/50 border border-red-500 text-red-200 rounded-lg text-sm">
-          {error}
+      {errorMessage && (
+        <div class="p-4 bg-red-950/80 border border-red-500 text-red-200 rounded-2xl text-sm font-semibold shadow-lg flex items-center space-x-2.5">
+          <span class="text-xl">⚠️</span>
+          <span>{errorMessage}</span>
         </div>
       )}
 
-      <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-md">
-        <h2 class="text-2xl font-semibold mb-2">Welcome back, {user.username}!</h2>
-        <p class="text-gray-400 text-sm">
-          {user.is_admin === 1
-            ? 'You are logged in as the administrator (budi). You can manage user credentials below.'
-            : 'You are successfully authenticated. If you forgot your password, please contact the administrator (budi) to reset it.'}
-        </p>
-      </div>
-
-      {user.is_admin === 1 && (
-        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-md space-y-6">
-          <div>
-            <h3 class="text-xl font-semibold text-gray-200">User Management & Password Reset</h3>
-            <p class="text-gray-400 text-sm mt-1">
-              Overwrite passwords for any user in case they forgot their credentials.
+      <!-- Welcome Banner & Collapsible Family Guide -->
+      <section class="bg-gradient-to-br from-slate-800/90 to-slate-800/60 border border-slate-700/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl">
+        <div class="flex items-center justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="text-base sm:text-lg font-bold text-white">Welcome back, {user.username}!</span>
+              {user.is_admin === 1 && (
+                <span class="bg-blue-950 text-blue-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-blue-800">Admin</span>
+              )}
+            </div>
+            <p class="text-xs sm:text-sm text-slate-400">
+              A peaceful place for our family to stay connected, encourage one another, and grow in Christ.
             </p>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="border-b border-gray-700 text-gray-400 text-xs uppercase tracking-wider">
-                  <th class="py-3 px-4">ID</th>
-                  <th class="py-3 px-4">Username</th>
-                  <th class="py-3 px-4">Role</th>
-                  <th class="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-700/50 text-sm">
-                {allUsers.map((u) => (
-                  <tr class="hover:bg-gray-750">
-                    <td class="py-3 px-4 text-gray-400">{u.id}</td>
-                    <td class="py-3 px-4 font-medium text-white">{u.username}</td>
-                    <td class="py-3 px-4">
-                      {u.is_admin === 1 ? (
-                        <span class="text-blue-400 font-semibold">Admin</span>
-                      ) : (
-                        <span class="text-gray-400">User</span>
-                      )}
-                    </td>
-                    <td class="py-3 px-4 text-right">
-                      <form method="POST" class="inline-flex items-center space-x-2 justify-end">
-                        <input type="hidden" name="action" value="reset_password" />
-                        <input type="hidden" name="username" value={u.username} />
-                        <input
-                          type="password"
-                          name="new_password"
-                          placeholder="New password"
-                          required
-                          class="px-3 py-1.5 bg-gray-900 border border-gray-700 rounded text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                        <button
-                          type="submit"
-                          class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded transition duration-150"
-                        >
-                          Reset Pwd
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <!-- Guide Toggle Button -->
+          <button
+            type="button"
+            id="toggle-guide-btn"
+            class="px-3 py-1.5 bg-slate-700/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-600 transition shrink-0 flex items-center space-x-1.5"
+          >
+            <span id="guide-toggle-icon">📖</span>
+            <span id="guide-toggle-text">How to Use</span>
+          </button>
+        </div>
+
+        <!-- Collapsible Guide Body -->
+        <div id="guide-collapsible" class="hidden mt-4 pt-4 border-t border-slate-700/70 space-y-3.5">
+          <div class="p-3.5 bg-blue-950/40 border border-blue-800/40 rounded-xl text-blue-200 text-xs sm:text-sm leading-relaxed">
+            ❤️ <strong class="text-white">Our Family Purpose:</strong> We check in so everyone knows each other is safe, cared for, and doing well. There is <span class="text-emerald-300 font-bold">never any pressure</span> to write long essays—a simple 30-second check-in using the friendly defaults is more than enough!
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-300">
+            <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
+              <strong class="text-white">1. Check Mood:</strong> Select how your state of mind is today (defaults to <em>Pleasant</em>).
+            </div>
+            <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
+              <strong class="text-white">2. Share Freely:</strong> Edit or keep default notes on Struggle, Blessing, or Prayer.
+            </div>
+            <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
+              <strong class="text-white">3. Daily Devotion:</strong> Read today's Reformed reflection on God's providence and care.
+            </div>
+            <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
+              <strong class="text-white">4. Auto-Save & Security:</strong> Drafts save as you type; logs out after 10m of inactivity for privacy.
+            </div>
+          </div>
+
+          <div class="text-right">
+            <a href="/guide" class="text-xs text-blue-400 hover:text-blue-300 font-semibold underline">
+              View Detailed Family Guide →
+            </a>
           </div>
         </div>
-      )}
+      </section>
+
+      <!-- Check-In Form Card -->
+      <form method="POST" id="checkin-form" class="space-y-6">
+        <input type="hidden" name="action" value="submit_checkin" />
+        <input type="hidden" name="devotion_title" value={todayDevotion.title} />
+        <input type="hidden" name="devotion_passage" value={todayDevotion.passage} />
+        <input type="hidden" name="devotion_text" value={todayDevotion.reflection} />
+
+        <div class="bg-slate-800/90 border border-slate-700/90 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xl space-y-6">
+          
+          <!-- Header with Live Date/Time Badge & Draft Status -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-700/70">
+            <div>
+              <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center space-x-2">
+                <span>📝</span>
+                <span>Daily Family Check-In</span>
+              </h1>
+              <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+                Take a moment to record your heart and mind today.
+              </p>
+            </div>
+
+            <!-- Auto-Save Status & Live Local Date/Time Badge -->
+            <div class="flex items-center space-x-2.5">
+              <span id="draft-status" class="text-xs text-emerald-400 font-medium px-2 py-1 bg-emerald-950/60 border border-emerald-800/60 rounded-lg transition-opacity duration-300 opacity-0">
+                Draft saved ✓
+              </span>
+              <div id="live-datetime" class="px-3 py-1.5 bg-slate-900/80 border border-slate-700 rounded-xl text-xs font-mono text-slate-300 text-center shadow-inner">
+                Loading date...
+              </div>
+            </div>
+          </div>
+
+          <!-- 1. State of Mind Selector (7 Options, Pill / Card Radio) -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                State of Mind <span class="text-slate-500 font-normal lowercase">(how are you feeling today?)</span>
+              </label>
+              <span class="text-xs text-slate-400">Default: <strong class="text-emerald-400">Pleasant</strong></span>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+              {STATE_OPTIONS.map((opt) => (
+                <label class="relative flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-2xl border cursor-pointer transition-all duration-200 select-none min-h-[52px] group text-center hover:scale-[1.02] active:scale-95 bg-slate-900/60 border-slate-700 text-slate-300 has-[:checked]:ring-2 has-[:checked]:ring-blue-500 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-950/50 has-[:checked]:text-white">
+                  <input
+                    type="radio"
+                    name="state_of_mind"
+                    value={opt.value}
+                    checked={opt.isDefault}
+                    class="sr-only"
+                  />
+                  <span class="text-xl sm:text-2xl mb-1 group-hover:scale-110 transition">{opt.emoji}</span>
+                  <span class="text-[11px] sm:text-xs font-semibold leading-tight line-clamp-2">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- 2. Four Styled Pastel Textareas -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+            
+            <!-- Struggle (Soft Rose / Blush Tint) -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label for="field-struggle" class="text-xs font-bold uppercase tracking-wider text-rose-300 flex items-center space-x-1.5">
+                  <span>🥀</span>
+                  <span>Struggle</span>
+                </label>
+                <span class="text-[11px] text-slate-400">Default: "None"</span>
+              </div>
+              <div class="relative">
+                <textarea
+                  id="field-struggle"
+                  name="struggle"
+                  rows="3"
+                  class="w-full px-4 py-3 bg-rose-950/20 border border-rose-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400/80 focus:border-rose-400 shadow-inner resize-y transition min-h-[90px]"
+                  placeholder="Share any difficulty or hardship, or keep as 'None'..."
+                >None</textarea>
+              </div>
+            </div>
+
+            <!-- Count Blessing (Soft Amber / Warm Gold Tint) -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label for="field-blessing" class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center space-x-1.5">
+                  <span>✨</span>
+                  <span>Count Blessing</span>
+                </label>
+                <span class="text-[11px] text-slate-400">Default: "I'm loved by God"</span>
+              </div>
+              <div class="relative">
+                <textarea
+                  id="field-blessing"
+                  name="count_blessing"
+                  rows="3"
+                  class="w-full px-4 py-3 bg-amber-950/20 border border-amber-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/80 focus:border-amber-400 shadow-inner resize-y transition min-h-[90px]"
+                  placeholder="What are you thankful for today?"
+                >I'm loved by God</textarea>
+              </div>
+            </div>
+
+            <!-- Prayer Request (Soft Sky Blue / Indigo Tint) -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label for="field-prayer" class="text-xs font-bold uppercase tracking-wider text-sky-300 flex items-center space-x-1.5">
+                  <span>🙏</span>
+                  <span>Prayer Request</span>
+                </label>
+                <span class="text-[11px] text-slate-400">Default: "Lord's Prayer"</span>
+              </div>
+              <div class="relative">
+                <textarea
+                  id="field-prayer"
+                  name="prayer_request"
+                  rows="3"
+                  class="w-full px-4 py-3 bg-sky-950/20 border border-sky-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400/80 focus:border-sky-400 shadow-inner resize-y transition min-h-[90px]"
+                  placeholder="How can your family pray for you today?"
+                >Lord's Prayer</textarea>
+              </div>
+            </div>
+
+            <!-- Any Other Business (Soft Sage / Mint Green Tint) -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label for="field-aob" class="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center space-x-1.5">
+                  <span>💬</span>
+                  <span>Any Other Business</span>
+                </label>
+                <span class="text-[11px] text-slate-400">(Optional)</span>
+              </div>
+              <div class="relative">
+                <textarea
+                  id="field-aob"
+                  name="aob"
+                  rows="3"
+                  class="w-full px-4 py-3 bg-emerald-950/20 border border-emerald-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/80 focus:border-emerald-400 shadow-inner resize-y transition min-h-[90px]"
+                  placeholder="Family schedule, shoutouts, or any extra notes..."
+                ></textarea>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 3. Reformed Theology Daily Short Devotion Card -->
+          <div class="mt-4 p-5 sm:p-6 bg-gradient-to-br from-indigo-950/50 via-slate-900/80 to-slate-900 border border-indigo-500/40 rounded-2xl sm:rounded-3xl shadow-lg space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center space-x-2">
+                <span>📖</span>
+                <span>Daily Reformed Devotion</span>
+              </span>
+              <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-700">
+                {todayDevotion.passage}
+              </span>
+            </div>
+
+            <div>
+              <h3 class="text-lg font-bold text-white tracking-tight">
+                {todayDevotion.title}
+              </h3>
+              <p class="text-xs sm:text-sm text-indigo-200/90 italic mt-1 font-serif">
+                "{todayDevotion.scriptureText}"
+              </p>
+            </div>
+
+            <p class="text-xs sm:text-sm text-slate-300 leading-relaxed pt-1">
+              {todayDevotion.reflection}
+            </p>
+
+            <div class="pt-2 text-xs text-indigo-200/80 bg-indigo-900/30 border border-indigo-700/40 rounded-xl p-3">
+              <strong class="text-indigo-200">Prayer:</strong> {todayDevotion.prayer}
+            </div>
+          </div>
+
+          <!-- Action Buttons: Check In & Reset Draft -->
+          <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button
+              type="button"
+              id="reset-defaults-btn"
+              class="w-full sm:w-auto px-4 py-3 text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-xl transition duration-150 border border-transparent hover:border-slate-700"
+            >
+              Reset to Defaults
+            </button>
+
+            <button
+              type="submit"
+              class="w-full sm:w-auto min-w-[200px] min-h-[48px] py-3.5 px-8 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 transition-all duration-200 transform active:scale-95 flex items-center justify-center space-x-2"
+            >
+              <span>☀️</span>
+              <span>Check In</span>
+            </button>
+          </div>
+
+        </div>
+      </form>
+
     </main>
   </div>
 </Layout>
+
+<script>
+  // Live Date/Time Display
+  function updateLiveDateTime() {
+    const el = document.getElementById('live-datetime');
+    if (!el) return;
+    const now = new Date();
+    const formatted = now.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }) + ' • ' + now.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    el.textContent = formatted;
+  }
+  updateLiveDateTime();
+  setInterval(updateLiveDateTime, 30000);
+
+  // Collapsible Guide Logic
+  const toggleGuideBtn = document.getElementById('toggle-guide-btn');
+  const guideCollapsible = document.getElementById('guide-collapsible');
+  const guideToggleText = document.getElementById('guide-toggle-text');
+
+  if (toggleGuideBtn && guideCollapsible) {
+    const isGuideOpen = localStorage.getItem('family_checkin_guide_open') === 'true';
+    if (isGuideOpen) {
+      guideCollapsible.classList.remove('hidden');
+      if (guideToggleText) guideToggleText.textContent = 'Hide Guide';
+    }
+
+    toggleGuideBtn.addEventListener('click', () => {
+      const isHidden = guideCollapsible.classList.toggle('hidden');
+      if (guideToggleText) {
+        guideToggleText.textContent = isHidden ? 'How to Use' : 'Hide Guide';
+      }
+      localStorage.setItem('family_checkin_guide_open', (!isHidden).toString());
+    });
+  }
+
+  // Auto-Save Draft to LocalStorage
+  const DRAFT_KEY = 'family_checkin_draft_v1';
+  const struggleInput = document.getElementById('field-struggle') as HTMLTextAreaElement | null;
+  const blessingInput = document.getElementById('field-blessing') as HTMLTextAreaElement | null;
+  const prayerInput = document.getElementById('field-prayer') as HTMLTextAreaElement | null;
+  const aobInput = document.getElementById('field-aob') as HTMLTextAreaElement | null;
+  const draftStatus = document.getElementById('draft-status');
+
+  function getSelectedMood(): string {
+    const selected = document.querySelector('input[name="state_of_mind"]:checked') as HTMLInputElement | null;
+    return selected ? selected.value : 'Pleasant';
+  }
+
+  function setSelectedMood(val: string) {
+    const target = document.querySelector(`input[name="state_of_mind"][value="${val}"]`) as HTMLInputElement | null;
+    if (target) target.checked = true;
+  }
+
+  function saveDraft() {
+    const draft = {
+      state_of_mind: getSelectedMood(),
+      struggle: struggleInput?.value || '',
+      count_blessing: blessingInput?.value || '',
+      prayer_request: prayerInput?.value || '',
+      aob: aobInput?.value || '',
+      savedAt: Date.now()
+    };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      if (draftStatus) {
+        draftStatus.classList.remove('opacity-0');
+        setTimeout(() => {
+          draftStatus.classList.add('opacity-0');
+        }, 2000);
+      }
+    } catch (e) {
+      console.warn('Failed to save draft to localStorage', e);
+    }
+  }
+
+  // Load saved draft on page load
+  try {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.state_of_mind) setSelectedMood(data.state_of_mind);
+      if (struggleInput && data.struggle !== undefined) struggleInput.value = data.struggle;
+      if (blessingInput && data.count_blessing !== undefined) blessingInput.value = data.count_blessing;
+      if (prayerInput && data.prayer_request !== undefined) prayerInput.value = data.prayer_request;
+      if (aobInput && data.aob !== undefined) aobInput.value = data.aob;
+    }
+  } catch (e) {
+    console.warn('Failed to restore draft', e);
+  }
+
+  // Auto-save on input or mood change
+  let debounceTimer: any = null;
+  function scheduleSave() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(saveDraft, 600);
+  }
+
+  [struggleInput, blessingInput, prayerInput, aobInput].forEach((input) => {
+    input?.addEventListener('input', scheduleSave);
+  });
+
+  document.querySelectorAll('input[name="state_of_mind"]').forEach((radio) => {
+    radio.addEventListener('change', scheduleSave);
+  });
+
+  // Listen for the custom event sent right before security auto-logoff
+  window.addEventListener('family-app:auto-save-draft', () => {
+    saveDraft();
+  });
+
+  // Reset to Defaults Button
+  const resetBtn = document.getElementById('reset-defaults-btn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      setSelectedMood('Pleasant');
+      if (struggleInput) struggleInput.value = 'None';
+      if (blessingInput) blessingInput.value = "I'm loved by God";
+      if (prayerInput) prayerInput.value = "Lord's Prayer";
+      if (aobInput) aobInput.value = '';
+      localStorage.removeItem(DRAFT_KEY);
+      if (draftStatus) {
+        draftStatus.textContent = 'Defaults restored';
+        draftStatus.classList.remove('opacity-0');
+        setTimeout(() => {
+          draftStatus.classList.add('opacity-0');
+          draftStatus.textContent = 'Draft saved ✓';
+        }, 2000);
+      }
+    });
+  }
+
+  // Clear draft on successful form submission
+  const form = document.getElementById('checkin-form');
+  if (form) {
+    form.addEventListener('submit', () => {
+      localStorage.removeItem(DRAFT_KEY);
+    });
+  }
+</script>

@@ -1,0 +1,90 @@
+---
+// Security Inactivity Timer (10-minute inactivity & focus-loss auto-logoff)
+---
+
+<script>
+  (function initSecurityInactivityTimer() {
+    const INACTIVITY_LIMIT_MS = 10 * 60 * 1000; // 10 minutes (600,000 ms)
+    let lastActive = Date.now();
+    let blurStartTime: number | null = null;
+    let isLoggedOut = false;
+
+    function triggerAutoLogoff() {
+      if (isLoggedOut) return;
+      isLoggedOut = true;
+
+      // Dispatch event so any open check-in form flushes its latest draft to localStorage
+      try {
+        window.dispatchEvent(new CustomEvent('family-app:auto-save-draft'));
+      } catch (e) {
+        console.error('Error auto-saving draft before logoff:', e);
+      }
+
+      // Perform clean logout and redirect to login page with clear message
+      window.location.href = '/api/logout?reason=inactivity';
+    }
+
+    function recordActivity() {
+      if (isLoggedOut) return;
+      lastActive = Date.now();
+    }
+
+    // User activity listeners
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, recordActivity, { passive: true });
+    });
+
+    // Window focus / visibility listeners
+    function handleVisibilityOrBlur() {
+      if (document.hidden) {
+        if (!blurStartTime) {
+          blurStartTime = Date.now();
+        }
+      } else {
+        // Returned to window
+        if (blurStartTime && Date.now() - blurStartTime >= INACTIVITY_LIMIT_MS) {
+          triggerAutoLogoff();
+          return;
+        }
+        blurStartTime = null;
+        lastActive = Date.now();
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityOrBlur);
+    window.addEventListener('blur', () => {
+      if (!blurStartTime) {
+        blurStartTime = Date.now();
+      }
+    });
+    window.addEventListener('focus', () => {
+      if (blurStartTime && Date.now() - blurStartTime >= INACTIVITY_LIMIT_MS) {
+        triggerAutoLogoff();
+        return;
+      }
+      blurStartTime = null;
+      lastActive = Date.now();
+    });
+
+    // Periodic safety check every 5 seconds
+    setInterval(() => {
+      if (isLoggedOut) return;
+
+      const now = Date.now();
+      const inactiveTime = now - lastActive;
+
+      // Check user inactivity
+      if (inactiveTime >= INACTIVITY_LIMIT_MS) {
+        triggerAutoLogoff();
+        return;
+      }
+
+      // Check focus loss duration
+      if (blurStartTime && now - blurStartTime >= INACTIVITY_LIMIT_MS) {
+        triggerAutoLogoff();
+        return;
+      }
+    }, 5000);
+  })();
+</script>

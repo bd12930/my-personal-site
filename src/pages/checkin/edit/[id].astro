@@ -1,0 +1,225 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import SecurityInactivityTimer from '../../../components/SecurityInactivityTimer.astro';
+import { env } from 'cloudflare:workers';
+import { getSessionUser } from '../../../lib/auth';
+import { getCheckInById, updateCheckIn } from '../../../lib/db';
+
+const user = await getSessionUser(Astro);
+if (!user) {
+  return Astro.redirect('/login');
+}
+
+const d1 = (env as any)?.DB;
+const { id } = Astro.params;
+const checkInId = Number(id);
+
+if (!checkInId || isNaN(checkInId)) {
+  return Astro.redirect('/history');
+}
+
+const entry = await getCheckInById(d1, checkInId);
+if (!entry) {
+  return Astro.redirect('/history');
+}
+
+// Enforce strict user isolation: only allow editing if logged-in user owns the record
+if (entry.user_id !== user.id && entry.username !== user.username) {
+  return new Response('Unauthorized: You can only edit your own check-in records.', { status: 403 });
+}
+
+let errorMessage = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+    const stateOfMind = data.get('state_of_mind')?.toString()?.trim() || entry.state_of_mind;
+    const struggle = data.get('struggle')?.toString()?.trim() || 'None';
+    const countBlessing = data.get('count_blessing')?.toString()?.trim() || "I'm loved by God";
+    const prayerRequest = data.get('prayer_request')?.toString()?.trim() || "Lord's Prayer";
+    const aob = data.get('aob')?.toString()?.trim() || '';
+
+    const success = await updateCheckIn(d1, checkInId, user.id, {
+      state_of_mind: stateOfMind,
+      struggle,
+      count_blessing: countBlessing,
+      prayer_request: prayerRequest,
+      aob
+    });
+
+    if (success) {
+      return Astro.redirect('/history');
+    } else {
+      errorMessage = 'Failed to update entry. Please make sure you have permission to edit this record.';
+    }
+  } catch (err: any) {
+    errorMessage = err.message || 'An error occurred while saving changes.';
+  }
+}
+
+const STATE_OPTIONS = [
+  { value: 'Very Unpleasant', label: 'Very Unpleasant', emoji: '😣' },
+  { value: 'Unpleasant', label: 'Unpleasant', emoji: '🙁' },
+  { value: 'Slightly Unpleasant', label: 'Slightly Unpleasant', emoji: '😕' },
+  { value: 'Neutral', label: 'Neutral', emoji: '😐' },
+  { value: 'Slightly Pleasant', label: 'Slightly Pleasant', emoji: '🙂' },
+  { value: 'Pleasant', label: 'Pleasant', emoji: '😊' },
+  { value: 'Very Pleasant', label: 'Very Pleasant', emoji: '😄' },
+];
+---
+
+<Layout>
+  <SecurityInactivityTimer />
+  <div class="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col antialiased">
+    <!-- Navbar -->
+    <header class="bg-slate-800/95 backdrop-blur-md border-b border-slate-700/80 sticky top-0 z-30 px-4 sm:px-6 py-3.5 flex justify-between items-center shadow-md">
+      <div class="flex items-center space-x-2.5">
+        <a href="/history" class="flex items-center space-x-2 hover:opacity-90 transition">
+          <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-500/20">
+            ☀️
+          </span>
+          <span class="text-lg sm:text-xl font-black bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-300 bg-clip-text text-transparent">
+            Brand New Everyday
+          </span>
+        </a>
+        <span class="text-xs bg-slate-700/80 text-slate-300 px-2.5 py-0.5 rounded-full font-medium border border-slate-600">
+          Edit Entry #{entry.id}
+        </span>
+      </div>
+
+      <nav class="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm font-semibold">
+        <a
+          href="/history"
+          class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-600/80 transition"
+        >
+          Cancel
+        </a>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-6 min-w-0">
+      
+      {errorMessage && (
+        <div class="p-4 bg-red-950/80 border border-red-500 text-red-200 rounded-2xl text-sm font-semibold shadow-md flex items-center space-x-2.5">
+          <span>⚠️</span>
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      <!-- Edit Form Card -->
+      <form method="POST" class="bg-slate-800/90 border border-slate-700/80 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xl space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold text-white tracking-tight flex items-center space-x-2">
+            <span>✏️</span>
+            <span>Edit Your Check-In</span>
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-400 mt-1">
+            Updating check-in for <span class="font-semibold text-slate-300">{entry.username}</span> recorded on {new Date(entry.created_at).toLocaleString()}.
+          </p>
+        </div>
+
+        <!-- 1. State of Mind Selector -->
+        <div class="space-y-3">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+            State of Mind
+          </label>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            {STATE_OPTIONS.map((opt) => (
+              <label class="relative flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all duration-200 select-none min-h-[50px] text-center hover:scale-[1.02] active:scale-95 bg-slate-900/60 border-slate-700 text-slate-300 has-[:checked]:ring-2 has-[:checked]:ring-blue-500 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-950/50 has-[:checked]:text-white">
+                <input
+                  type="radio"
+                  name="state_of_mind"
+                  value={opt.value}
+                  checked={entry.state_of_mind === opt.value}
+                  class="sr-only"
+                />
+                <span class="text-xl sm:text-2xl mb-1">{opt.emoji}</span>
+                <span class="text-[11px] font-semibold leading-tight line-clamp-2">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <!-- 2. Four Styled Pastel Fields Pre-filled -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+          
+          <!-- Struggle -->
+          <div class="space-y-2">
+            <label for="field-struggle" class="text-xs font-bold uppercase tracking-wider text-rose-300 flex items-center space-x-1.5">
+              <span>🥀</span>
+              <span>Struggle</span>
+            </label>
+            <textarea
+              id="field-struggle"
+              name="struggle"
+              rows="3"
+              class="w-full px-4 py-3 bg-rose-950/20 border border-rose-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400/80 focus:border-rose-400 shadow-inner resize-y transition min-h-[90px]"
+            >{entry.struggle}</textarea>
+          </div>
+
+          <!-- Count Blessing -->
+          <div class="space-y-2">
+            <label for="field-blessing" class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center space-x-1.5">
+              <span>✨</span>
+              <span>Count Blessing</span>
+            </label>
+            <textarea
+              id="field-blessing"
+              name="count_blessing"
+              rows="3"
+              class="w-full px-4 py-3 bg-amber-950/20 border border-amber-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/80 focus:border-amber-400 shadow-inner resize-y transition min-h-[90px]"
+            >{entry.count_blessing}</textarea>
+          </div>
+
+          <!-- Prayer Request -->
+          <div class="space-y-2">
+            <label for="field-prayer" class="text-xs font-bold uppercase tracking-wider text-sky-300 flex items-center space-x-1.5">
+              <span>🙏</span>
+              <span>Prayer Request</span>
+            </label>
+            <textarea
+              id="field-prayer"
+              name="prayer_request"
+              rows="3"
+              class="w-full px-4 py-3 bg-sky-950/20 border border-sky-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400/80 focus:border-sky-400 shadow-inner resize-y transition min-h-[90px]"
+            >{entry.prayer_request}</textarea>
+          </div>
+
+          <!-- Any Other Business -->
+          <div class="space-y-2">
+            <label for="field-aob" class="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center space-x-1.5">
+              <span>💬</span>
+              <span>Any Other Business</span>
+            </label>
+            <textarea
+              id="field-aob"
+              name="aob"
+              rows="3"
+              class="w-full px-4 py-3 bg-emerald-950/20 border border-emerald-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/80 focus:border-emerald-400 shadow-inner resize-y transition min-h-[90px]"
+            >{entry.aob || ''}</textarea>
+          </div>
+
+        </div>
+
+        <!-- Buttons -->
+        <div class="pt-4 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-700/70">
+          <a
+            href="/history"
+            class="w-full sm:w-auto text-center px-5 py-3 text-xs font-semibold text-slate-400 hover:text-white rounded-xl transition"
+          >
+            Cancel
+          </a>
+          <button
+            type="submit"
+            class="w-full sm:w-auto min-w-[160px] py-3.5 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-blue-500/25 transition-all duration-200 transform active:scale-95"
+          >
+            Save Changes
+          </button>
+        </div>
+      </form>
+
+    </main>
+  </div>
+</Layout>

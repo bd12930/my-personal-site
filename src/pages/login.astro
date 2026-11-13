@@ -12,6 +12,12 @@ if (user) {
 let statusMessage = '';
 let statusType = ''; // 'success' | 'error'
 
+const reason = Astro.url.searchParams.get('reason');
+if (reason === 'inactivity') {
+  statusType = 'error';
+  statusMessage = 'Logged out due to 10 minutes of inactivity';
+}
+
 if (Astro.request.method === 'POST') {
   try {
     const data = await Astro.request.formData();

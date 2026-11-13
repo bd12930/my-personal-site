@@ -1,0 +1,166 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SecurityInactivityTimer from '../components/SecurityInactivityTimer.astro';
+import { getSessionUser } from '../lib/auth';
+
+const user = await getSessionUser(Astro);
+if (!user) {
+  return Astro.redirect('/login');
+}
+---
+
+<Layout>
+  <SecurityInactivityTimer />
+  <div class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-slate-100 font-sans flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-30 px-4 sm:px-6 py-3.5 flex justify-between items-center shadow-sm">
+      <div class="flex items-center space-x-2.5">
+        <a href="/" class="flex items-center space-x-2 hover:opacity-90 transition">
+          <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-500/20">
+            ☀️
+          </span>
+          <span class="text-base sm:text-lg font-black bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-300 bg-clip-text text-transparent">
+            Brand New Everyday
+          </span>
+        </a>
+      </div>
+
+      <nav class="flex items-center space-x-2 sm:space-x-3">
+        <a
+          href="/"
+          class="px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700/80 transition"
+        >
+          Check-In
+        </a>
+        <a
+          href="/history"
+          class="px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700/80 transition"
+        >
+          History
+        </a>
+        {user.is_admin === 1 && (
+          <a
+            href="/admin"
+            class="px-3 py-1.5 sm:px-4 sm:py-2 bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 text-xs sm:text-sm font-semibold rounded-xl border border-indigo-700/60 transition"
+          >
+            Admin
+          </a>
+        )}
+        <a
+          href="/api/logout"
+          class="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600/80 hover:bg-red-600 text-white text-xs sm:text-sm font-semibold rounded-xl transition"
+        >
+          Logout
+        </a>
+      </nav>
+    </header>
+
+    <!-- Main Guide Content -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-8">
+      
+      <!-- Warm Purpose Hero -->
+      <section class="bg-gradient-to-br from-blue-900/40 via-indigo-900/30 to-purple-900/20 border border-blue-500/30 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-12 -top-12 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="max-w-2xl space-y-3">
+          <div class="inline-flex items-center space-x-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold px-3 py-1 rounded-full">
+            <span>❤️ Family Ministry & Fellowship</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            Why We Check In Every Day
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+            This space was created so that <strong class="text-white">all family members can stay connected</strong>, know that everyone is safe and well, and encourage one another in Christian faith and love.
+          </p>
+          <div class="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl text-emerald-200 text-xs sm:text-sm leading-relaxed">
+            ✨ <strong class="text-emerald-100">Zero Pressure:</strong> You never have to write long essays or spend lots of time. A simple, 30-second check-in with the friendly defaults is more than enough to brighten everyone's day!
+          </div>
+        </div>
+      </section>
+
+      <!-- Step-by-Step Guide -->
+      <section class="space-y-4">
+        <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center space-x-2">
+          <span>📖</span>
+          <span>How to Use (Step-by-Step)</span>
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Step 1 -->
+          <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 space-y-2.5 shadow-sm hover:border-slate-600 transition">
+            <div class="w-8 h-8 rounded-xl bg-blue-600/30 border border-blue-500/40 text-blue-300 font-black text-sm flex items-center justify-center">
+              1
+            </div>
+            <h3 class="text-base font-bold text-white">Log in & Check Your Mood</h3>
+            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              Sign in with your family username and password. On the main page, choose how you are feeling from the 7 mood options. It already defaults to <span class="text-emerald-300 font-semibold">Pleasant</span> so you can submit in seconds when in a hurry.
+            </p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 space-y-2.5 shadow-sm hover:border-slate-600 transition">
+            <div class="w-8 h-8 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-black text-sm flex items-center justify-center">
+              2
+            </div>
+            <h3 class="text-base font-bold text-white">Share Briefly (Optional)</h3>
+            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              Jot down any struggles, blessings, or prayer requests in the softly colored boxes. Pre-filled with comforting defaults (<em class="text-slate-400">"None"</em>, <em class="text-slate-400">"I'm loved by God"</em>, <em class="text-slate-400">"Lord's Prayer"</em>)—keep them as-is or share what's on your heart.
+            </p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 space-y-2.5 shadow-sm hover:border-slate-600 transition">
+            <div class="w-8 h-8 rounded-xl bg-purple-600/30 border border-purple-500/40 text-purple-300 font-black text-sm flex items-center justify-center">
+              3
+            </div>
+            <h3 class="text-base font-bold text-white">Read the Short Devotion</h3>
+            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              Take a quiet minute to read today's brief Reformed Theology reflection. It centers our thoughts on God's sovereign providence, unfailing covenant love, and union with Jesus Christ.
+            </p>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 space-y-2.5 shadow-sm hover:border-slate-600 transition">
+            <div class="w-8 h-8 rounded-xl bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-black text-sm flex items-center justify-center">
+              4
+            </div>
+            <h3 class="text-base font-bold text-white">Submit & Browse History</h3>
+            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              Tap the large <strong class="text-emerald-300">Check In</strong> button to record your note. You can visit the <a href="/history" class="text-blue-400 underline hover:text-blue-300">History</a> page anytime to see what other family members posted, pray for their requests, or edit/delete your own past entries.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 5: Full Width Security & Auto-Save -->
+        <div class="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl p-5 space-y-2.5 shadow-sm">
+          <div class="flex items-center space-x-2 text-amber-300 font-bold text-sm">
+            <span>🛡️</span>
+            <span>Step 5: Auto-Save & Family Privacy Guarantee</span>
+          </div>
+          <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+            <strong class="text-white">Auto-Draft:</strong> Your notes are automatically saved to your browser as you type. If your phone rings or browser closes, your words won't be lost.
+          </p>
+          <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+            <strong class="text-white">10-Minute Security Auto-Logoff:</strong> If there is no activity for 10 minutes, or if you switch away from the window for 10 minutes, the app automatically saves your draft and logs you out safely so other people using your device cannot tamper with your account.
+          </p>
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-3 pt-2">
+        <a
+          href="/"
+          class="flex-1 text-center py-3.5 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-blue-500/25 transition duration-200"
+        >
+          Go to Daily Check-In
+        </a>
+        <a
+          href="/history"
+          class="flex-1 text-center py-3.5 px-6 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm rounded-2xl border border-slate-700 transition duration-200"
+        >
+          View Family History
+        </a>
+      </div>
+
+    </main>
+  </div>
+</Layout>

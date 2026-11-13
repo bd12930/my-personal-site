@@ -21,7 +21,24 @@ function getLocalDb() {
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         is_admin INTEGER NOT NULL DEFAULT 0
-      )
+      );
+      CREATE TABLE IF NOT EXISTS check_ins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        state_of_mind TEXT NOT NULL,
+        struggle TEXT NOT NULL,
+        count_blessing TEXT NOT NULL,
+        prayer_request TEXT NOT NULL,
+        aob TEXT,
+        devotion_title TEXT,
+        devotion_passage TEXT,
+        devotion_text TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_check_ins_user_id ON check_ins(user_id);
+      CREATE INDEX IF NOT EXISTS idx_check_ins_created_at ON check_ins(created_at);
     `);
     seedLocalUsers(localDb);
   }
@@ -80,6 +97,24 @@ export async function seedD1IfNeeded(d1: any) {
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         is_admin INTEGER NOT NULL DEFAULT 0
+      )
+    `).run();
+
+    await d1.prepare(`
+      CREATE TABLE IF NOT EXISTS check_ins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        state_of_mind TEXT NOT NULL,
+        struggle TEXT NOT NULL,
+        count_blessing TEXT NOT NULL,
+        prayer_request TEXT NOT NULL,
+        aob TEXT,
+        devotion_title TEXT,
+        devotion_passage TEXT,
+        devotion_text TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     `).run();
 
@@ -187,4 +222,186 @@ export async function verifyPassword(d1: any, username: string, password: string
   if (!user) return false;
   const { hash } = hashPassword(password, user.salt);
   return hash === user.password_hash;
+}
+
+export interface CheckIn {
+  id: number;
+  user_id: number;
+  username: string;
+  state_of_mind: string;
+  struggle: string;
+  count_blessing: string;
+  prayer_request: string;
+  aob: string | null;
+  devotion_title: string | null;
+  devotion_passage: string | null;
+  devotion_text: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function createCheckIn(d1: any, data: {
+  user_id: number;
+  username: string;
+  state_of_mind: string;
+  struggle: string;
+  count_blessing: string;
+  prayer_request: string;
+  aob?: string | null;
+  devotion_title?: string | null;
+  devotion_passage?: string | null;
+  devotion_text?: string | null;
+  created_at?: string;
+}): Promise<number> {
+  const db = getD1(d1);
+  const now = data.created_at || new Date().toISOString();
+  const aob = data.aob || '';
+  const devTitle = data.devotion_title || null;
+  const devPassage = data.devotion_passage || null;
+  const devText = data.devotion_text || null;
+
+  if (db) {
+    await seedD1IfNeeded(db);
+    const result = await db.prepare(`
+      INSERT INTO check_ins (
+        user_id, username, state_of_mind, struggle, count_blessing, prayer_request,
+        aob, devotion_title, devotion_passage, devotion_text, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      data.user_id,
+      data.username,
+      data.state_of_mind,
+      data.struggle,
+      data.count_blessing,
+      data.prayer_request,
+      aob,
+      devTitle,
+      devPassage,
+      devText,
+      now,
+      now
+    ).run();
+    return result?.meta?.last_row_id || 0;
+  } else {
+    const local = getLocalDb();
+    const stmt = local.prepare(`
+      INSERT INTO check_ins (
+        user_id, username, state_of_mind, struggle, count_blessing, prayer_request,
+        aob, devotion_title, devotion_passage, devotion_text, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const res = stmt.run(
+      data.user_id,
+      data.username,
+      data.state_of_mind,
+      data.struggle,
+      data.count_blessing,
+      data.prayer_request,
+      aob,
+      devTitle,
+      devPassage,
+      devText,
+      now,
+      now
+    );
+    return Number(res.lastInsertRowid);
+  }
+}
+
+export async function getCheckIns(d1: any, limit: number = 100): Promise<CheckIn[]> {
+  const db = getD1(d1);
+  if (db) {
+    await seedD1IfNeeded(db);
+    const { results } = await db.prepare(
+      'SELECT * FROM check_ins ORDER BY created_at DESC, id DESC LIMIT ?'
+    ).bind(limit).all();
+    return (results || []) as CheckIn[];
+  } else {
+    const local = getLocalDb();
+    const stmt = local.prepare(
+      'SELECT * FROM check_ins ORDER BY created_at DESC, id DESC LIMIT ?'
+    );
+    return stmt.all(limit) as unknown as CheckIn[];
+  }
+}
+
+export async function getCheckInById(d1: any, id: number): Promise<CheckIn | null> {
+  const db = getD1(d1);
+  if (db) {
+    await seedD1IfNeeded(db);
+    const row = await db.prepare('SELECT * FROM check_ins WHERE id = ?').bind(id).first();
+    return (row as CheckIn) || null;
+  } else {
+    const local = getLocalDb();
+    const stmt = local.prepare('SELECT * FROM check_ins WHERE id = ?');
+    return (stmt.get(id) as unknown as CheckIn) || null;
+  }
+}
+
+export async function updateCheckIn(
+  d1: any,
+  id: number,
+  user_id: number,
+  data: {
+    state_of_mind: string;
+    struggle: string;
+    count_blessing: string;
+    prayer_request: string;
+    aob?: string | null;
+  }
+): Promise<boolean> {
+  const db = getD1(d1);
+  const now = new Date().toISOString();
+  const aob = data.aob ?? '';
+
+  if (db) {
+    await seedD1IfNeeded(db);
+    const res = await db.prepare(`
+      UPDATE check_ins
+      SET state_of_mind = ?, struggle = ?, count_blessing = ?, prayer_request = ?, aob = ?, updated_at = ?
+      WHERE id = ? AND user_id = ?
+    `).bind(
+      data.state_of_mind,
+      data.struggle,
+      data.count_blessing,
+      data.prayer_request,
+      aob,
+      now,
+      id,
+      user_id
+    ).run();
+    return (res?.meta?.changes ?? 0) > 0;
+  } else {
+    const local = getLocalDb();
+    const stmt = local.prepare(`
+      UPDATE check_ins
+      SET state_of_mind = ?, struggle = ?, count_blessing = ?, prayer_request = ?, aob = ?, updated_at = ?
+      WHERE id = ? AND user_id = ?
+    `);
+    const res = stmt.run(
+      data.state_of_mind,
+      data.struggle,
+      data.count_blessing,
+      data.prayer_request,
+      aob,
+      now,
+      id,
+      user_id
+    );
+    return res.changes > 0;
+  }
+}
+
+export async function deleteCheckIn(d1: any, id: number, user_id: number): Promise<boolean> {
+  const db = getD1(d1);
+  if (db) {
+    await seedD1IfNeeded(db);
+    const res = await db.prepare('DELETE FROM check_ins WHERE id = ? AND user_id = ?').bind(id, user_id).run();
+    return (res?.meta?.changes ?? 0) > 0;
+  } else {
+    const local = getLocalDb();
+    const stmt = local.prepare('DELETE FROM check_ins WHERE id = ? AND user_id = ?');
+    const res = stmt.run(id, user_id);
+    return res.changes > 0;
+  }
 }

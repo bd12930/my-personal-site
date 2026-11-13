@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SecurityInactivityTimer from '../components/SecurityInactivityTimer.astro';
 import { getSessionUser } from '../lib/auth';
 
 const user = await getSessionUser(Astro);
@@ -9,6 +10,7 @@ if (!user) {
 ---
 
 <Layout>
+  <SecurityInactivityTimer />
   <div class="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100 text-slate-800 flex flex-col justify-center items-center px-4">
     <div class="max-w-md w-full bg-white/85 backdrop-blur-md rounded-2xl shadow-xl p-8 border border-sky-200 text-center space-y-6">
       <div class="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
@@ -27,7 +29,14 @@ if (!user) {
           href="/"
           class="w-full inline-block py-3 px-4 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 transition duration-200"
         >
-          Go to Dashboard
+          Go to Daily Check-In
+        </a>
+
+        <a
+          href="/history"
+          class="w-full inline-block py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition duration-200"
+        >
+          View Family History
         </a>
 
         {user.is_admin === 1 && (
