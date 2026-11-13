@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import { env } from 'cloudflare:workers';
 import { getSessionUser } from '../lib/auth';
-import { getAllUsers } from '../lib/db';
+import { getAllUsers, getUserByUsername, updateUserPassword } from '../lib/db';
 
 const user = await getSessionUser(Astro);
 if (!user) {
@@ -20,23 +20,18 @@ if (user.is_admin === 1 && Astro.request.method === 'POST') {
     const action = data.get('action');
 
     if (action === 'reset_password') {
-      const targetUsername = data.get('username')?.toString();
+      const targetUsername = data.get('username')?.toString()?.trim();
       const newPassword = data.get('new_password')?.toString();
 
       if (!targetUsername || !newPassword) {
         error = 'Target username and new password are required.';
       } else {
-        const response = await fetch(new URL('/api/admin/reset-password', Astro.request.url), {
-          method: 'POST',
-          headers: Astro.request.headers,
-          body: data,
-        });
-
-        const json = await response.json();
-        if (response.ok) {
-          message = json.message || `Password successfully updated for ${targetUsername}.`;
+        const targetUser = await getUserByUsername(d1, targetUsername);
+        if (!targetUser) {
+          error = 'User not found.';
         } else {
-          error = json.message || 'Failed to update password.';
+          await updateUserPassword(d1, targetUsername, newPassword);
+          message = `Password successfully updated for ${targetUsername}.`;
         }
       }
     }
