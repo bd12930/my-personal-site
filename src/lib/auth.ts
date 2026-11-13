@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { env } from 'cloudflare:workers';
 import { getUserByUsername, type User } from './db';
 
 const SESSION_COOKIE_NAME = 'site_session';
@@ -9,7 +10,7 @@ export async function getSessionUser(context: APIContext | { cookies: Astro.Cook
 
   try {
     const username = Buffer.from(cookie.value, 'base64').toString('utf-8');
-    const d1 = (context as any).locals?.runtime?.env?.DB;
+    const d1 = (env as any)?.DB;
     const user = await getUserByUsername(d1, username);
     if (!user) return null;
     return {

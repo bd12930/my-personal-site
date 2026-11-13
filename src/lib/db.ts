@@ -1,6 +1,11 @@
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
+import { env } from 'cloudflare:workers';
+
+function getD1(d1?: any) {
+  return d1 || (env as any)?.DB;
+}
 
 // Local fallback for dev/preview
 let localDb: DatabaseSync | null = null;
@@ -102,67 +107,73 @@ export async function seedD1IfNeeded(d1: any) {
 }
 
 export async function getUserByUsername(d1: any, username: string) {
-  if (d1) {
-    await seedD1IfNeeded(d1);
-    const row = await d1.prepare('SELECT id, username, password_hash, salt, is_admin FROM users WHERE username = ?').bind(username).first();
+  const db = getD1(d1);
+  if (db) {
+    await seedD1IfNeeded(db);
+    const row = await db.prepare('SELECT id, username, password_hash, salt, is_admin FROM users WHERE username = ?').bind(username).first();
     return row;
   } else {
-    const db = getLocalDb();
-    const stmt = db.prepare('SELECT id, username, password_hash, salt, is_admin FROM users WHERE username = ?');
+    const local = getLocalDb();
+    const stmt = local.prepare('SELECT id, username, password_hash, salt, is_admin FROM users WHERE username = ?');
     return stmt.get(username) as any;
   }
 }
 
 export async function getAllUsers(d1: any): Promise<User[]> {
-  if (d1) {
-    await seedD1IfNeeded(d1);
-    const { results } = await d1.prepare('SELECT id, username, is_admin FROM users ORDER BY username ASC').all();
+  const db = getD1(d1);
+  if (db) {
+    await seedD1IfNeeded(db);
+    const { results } = await db.prepare('SELECT id, username, is_admin FROM users ORDER BY username ASC').all();
     return results as User[];
   } else {
-    const db = getLocalDb();
-    const stmt = db.prepare('SELECT id, username, is_admin FROM users ORDER BY username ASC');
+    const local = getLocalDb();
+    const stmt = local.prepare('SELECT id, username, is_admin FROM users ORDER BY username ASC');
     return stmt.all() as User[];
   }
 }
 
 export async function updateUserPassword(d1: any, username: string, newPassword: string) {
   const { hash, salt } = hashPassword(newPassword);
-  if (d1) {
-    await d1.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE username = ?').bind(hash, salt, username).run();
+  const db = getD1(d1);
+  if (db) {
+    await db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE username = ?').bind(hash, salt, username).run();
   } else {
-    const db = getLocalDb();
-    const stmt = db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE username = ?');
+    const local = getLocalDb();
+    const stmt = local.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE username = ?');
     stmt.run(hash, salt, username);
   }
 }
 
 export async function createUser(d1: any, username: string, password: string, isAdmin: boolean = false) {
   const { hash, salt } = hashPassword(password);
-  if (d1) {
-    await d1.prepare('INSERT INTO users (username, password_hash, salt, is_admin) VALUES (?, ?, ?, ?)').bind(username, hash, salt, isAdmin ? 1 : 0).run();
+  const db = getD1(d1);
+  if (db) {
+    await db.prepare('INSERT INTO users (username, password_hash, salt, is_admin) VALUES (?, ?, ?, ?)').bind(username, hash, salt, isAdmin ? 1 : 0).run();
   } else {
-    const db = getLocalDb();
-    const stmt = db.prepare('INSERT INTO users (username, password_hash, salt, is_admin) VALUES (?, ?, ?, ?)');
+    const local = getLocalDb();
+    const stmt = local.prepare('INSERT INTO users (username, password_hash, salt, is_admin) VALUES (?, ?, ?, ?)');
     stmt.run(username, hash, salt, isAdmin ? 1 : 0);
   }
 }
 
 export async function deleteUser(d1: any, username: string) {
-  if (d1) {
-    await d1.prepare('DELETE FROM users WHERE username = ?').bind(username).run();
+  const db = getD1(d1);
+  if (db) {
+    await db.prepare('DELETE FROM users WHERE username = ?').bind(username).run();
   } else {
-    const db = getLocalDb();
-    const stmt = db.prepare('DELETE FROM users WHERE username = ?');
+    const local = getLocalDb();
+    const stmt = local.prepare('DELETE FROM users WHERE username = ?');
     stmt.run(username);
   }
 }
 
 export async function updateUsername(d1: any, oldUsername: string, newUsername: string) {
-  if (d1) {
-    await d1.prepare('UPDATE users SET username = ? WHERE username = ?').bind(newUsername, oldUsername).run();
+  const db = getD1(d1);
+  if (db) {
+    await db.prepare('UPDATE users SET username = ? WHERE username = ?').bind(newUsername, oldUsername).run();
   } else {
-    const db = getLocalDb();
-    const stmt = db.prepare('UPDATE users SET username = ? WHERE username = ?');
+    const local = getLocalDb();
+    const stmt = local.prepare('UPDATE users SET username = ? WHERE username = ?');
     stmt.run(newUsername, oldUsername);
   }
 }

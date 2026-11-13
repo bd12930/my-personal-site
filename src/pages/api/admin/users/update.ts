@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
 import { getSessionUser } from '../../../../lib/auth';
 import { updateUsername, getUserByUsername } from '../../../../lib/db';
 
-export const POST: APIRoute = async ({ request, cookies, locals }) => {
-  const currentUser = await getSessionUser({ cookies, locals });
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const currentUser = await getSessionUser({ cookies });
   if (!currentUser || currentUser.is_admin !== 1) {
     return new Response(JSON.stringify({ message: 'Unauthorized: Admin access required' }), {
       status: 403,
@@ -23,7 +24,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       });
     }
 
-    const d1 = (locals as any)?.runtime?.env?.DB;
+    const d1 = (env as any)?.DB;
     const existing = await getUserByUsername(d1, newUsername);
     if (existing) {
       return new Response(JSON.stringify({ message: 'New username is already taken' }), {

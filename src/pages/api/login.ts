@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
 import { verifyPassword } from '../../lib/db';
 import { setSession } from '../../lib/auth';
 
-export const POST: APIRoute = async ({ request, cookies, locals }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     const data = await request.formData();
     const username = data.get('username')?.toString()?.trim();
@@ -15,7 +16,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       });
     }
 
-    const d1 = (locals as any)?.runtime?.env?.DB;
+    const d1 = (env as any)?.DB;
     const isValid = await verifyPassword(d1, username, password);
     if (!isValid) {
       return new Response(JSON.stringify({ message: 'Invalid username or password' }), {

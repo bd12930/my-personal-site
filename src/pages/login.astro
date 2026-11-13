@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { env } from 'cloudflare:workers';
 import { getSessionUser, setSession } from '../lib/auth';
 import { verifyPassword } from '../lib/db';
 
@@ -21,7 +22,7 @@ if (Astro.request.method === 'POST') {
       statusType = 'error';
       statusMessage = 'Login Unsuccessful: Please enter both username and password.';
     } else {
-      const d1 = (Astro.locals as any)?.runtime?.env?.DB;
+      const d1 = (env as any)?.DB;
       const isValid = await verifyPassword(d1, username, password);
       if (isValid) {
         setSession(Astro, username);

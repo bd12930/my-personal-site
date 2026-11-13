@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { env } from 'cloudflare:workers';
 import { getSessionUser } from '../lib/auth';
 import { getAllUsers } from '../lib/db';
 
@@ -11,7 +12,7 @@ if (!user) {
 let message = '';
 let error = '';
 
-const d1 = (Astro.locals as any)?.runtime?.env?.DB;
+const d1 = (env as any)?.DB;
 
 if (user.is_admin === 1 && Astro.request.method === 'POST') {
   try {
