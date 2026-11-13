@@ -47,7 +47,12 @@ if (Astro.request.method === 'POST') {
         }
         statusType = 'success';
         statusMessage = 'Login Successful! Redirecting...';
-
+        // Remember last successful username
+        Astro.cookies.set('last_username', username, {
+          path: '/',
+          maxAge: 60 * 60 * 24 * 365,
+          sameSite: 'lax'
+        });
         // For standard users only, bring to Go To Daily Check-In page directly upon login except admin users
         if (loggedUser && loggedUser.is_admin === 1) {
           return Astro.redirect('/login-success');

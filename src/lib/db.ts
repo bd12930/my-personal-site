@@ -159,11 +159,11 @@ export async function getUserByUsername(d1: any, username: string) {
   const db = getD1(d1);
   if (db) {
     await seedD1IfNeeded(db);
-    const row = await db.prepare('SELECT id, username, password_hash, salt, is_admin, preferred_lang FROM users WHERE username = ?').bind(username).first();
+    const row = await db.prepare('SELECT id, username, password_hash, salt, is_admin, preferred_lang FROM users WHERE LOWER(username) = LOWER(?)').bind(username).first();
     return row;
   } else {
     const local = getLocalDb();
-    const stmt = local.prepare('SELECT id, username, password_hash, salt, is_admin, preferred_lang FROM users WHERE username = ?');
+    const stmt = local.prepare('SELECT id, username, password_hash, salt, is_admin, preferred_lang FROM users WHERE LOWER(username) = LOWER(?)');
     return stmt.get(username) as any;
   }
 }
