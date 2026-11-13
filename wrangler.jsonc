@@ -1,18 +1,10 @@
-// Wrangler configuration (JSONC) – observability settings
 {
-  // ... other configuration fields can be added here ...
-  "observability": {
-    "logs": {
-      "enabled": true,
-      "head_sampling_rate": 1,
-      "invocation_logs": true,
-      "persist": true
-    },
-    "traces": {
-      "enabled": false,
-      "head_sampling_rate": 1,
-      "persist": true
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "my-personal-site-db",
+      "database_id": "fdff053f-4351-4d95-a18c-b01142bfafbe"
     }
-  }
-  // ... other configuration fields can be added here ...
+  ]
 }
+
