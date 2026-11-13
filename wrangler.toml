@@ -1,8 +1,7 @@
 name = "my-personal-site"
 compatibility_date = "2026-11-12"
-pages_build_output_dir = "./dist"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "my-personal-site-db"
-database_id = "your-d1-database-id"
+database_id = "fdff053f-4351-4d95-a18c-b01142bfafbe"
