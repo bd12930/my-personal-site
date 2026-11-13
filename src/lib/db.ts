@@ -68,8 +68,21 @@ export interface User {
 }
 
 // Ensure D1 has default users seeded
+let isD1Seeded = false;
+
 export async function seedD1IfNeeded(d1: any) {
+  if (isD1Seeded) return;
   try {
+    await d1.prepare(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        is_admin INTEGER NOT NULL DEFAULT 0
+      )
+    `).run();
+
     const { results } = await d1.prepare('SELECT COUNT(*) as count FROM users WHERE username = ?').bind('budi').all();
     if (!results || results[0].count === 0) {
       const defaultUsers = [
@@ -91,18 +104,9 @@ export async function seedD1IfNeeded(d1: any) {
         `).bind(u.username, hash, salt, u.isAdmin ? 1 : 0).run();
       }
     }
+    isD1Seeded = true;
   } catch (err) {
-    // Table might not exist yet, create it
-    await d1.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        salt TEXT NOT NULL,
-        is_admin INTEGER NOT NULL DEFAULT 0
-      )
-    `);
-    await seedD1IfNeeded(d1);
+    console.error('Failed to initialize or seed D1:', err);
   }
 }
 
