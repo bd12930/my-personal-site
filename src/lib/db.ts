@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { env } from 'cloudflare:workers';
 
@@ -8,10 +7,12 @@ function getD1(d1?: any) {
 }
 
 // Local fallback for dev/preview
-let localDb: DatabaseSync | null = null;
+let localDb: any = null;
 
 function getLocalDb() {
   if (!localDb) {
+    // Dynamic import to avoid "Illegal constructor" on Cloudflare Workers
+    const { DatabaseSync } = require('node:sqlite');
     const dbPath = path.resolve(process.cwd(), 'database.sqlite');
     localDb = new DatabaseSync(dbPath);
     localDb.exec(`
