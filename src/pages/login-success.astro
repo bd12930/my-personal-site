@@ -7,6 +7,9 @@ const user = await getSessionUser(Astro);
 if (!user) {
   return Astro.redirect('/login');
 }
+if (user.is_admin !== 1) {
+  return Astro.redirect('/');
+}
 ---
 
 <Layout>

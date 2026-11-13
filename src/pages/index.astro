@@ -1,18 +1,23 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import SecurityInactivityTimer from '../components/SecurityInactivityTimer.astro';
+import LanguageSelector from '../components/LanguageSelector.astro';
 import { env } from 'cloudflare:workers';
 import { getSessionUser } from '../lib/auth';
 import { createCheckIn, getUserByUsername } from '../lib/db';
 import { getDailyDevotion } from '../lib/devotions';
+import { resolveLang, getTranslations } from '../lib/i18n';
 
 const user = await getSessionUser(Astro);
 if (!user) {
   return Astro.redirect('/login');
 }
 
+const lang = resolveLang(Astro.cookies, user.preferred_lang);
+const t = getTranslations(lang);
+
 const d1 = (env as any)?.DB;
-const todayDevotion = getDailyDevotion(new Date());
+const todayDevotion = getDailyDevotion(new Date(), lang);
 
 let successMessage = '';
 let errorMessage = '';
@@ -24,9 +29,9 @@ if (Astro.request.method === 'POST') {
 
     if (action === 'submit_checkin') {
       const stateOfMind = data.get('state_of_mind')?.toString()?.trim() || 'Pleasant';
-      const struggle = data.get('struggle')?.toString()?.trim() || 'None';
-      const countBlessing = data.get('count_blessing')?.toString()?.trim() || "I'm loved by God";
-      const prayerRequest = data.get('prayer_request')?.toString()?.trim() || "Lord's Prayer";
+      const struggle = data.get('struggle')?.toString()?.trim() || t.struggleDefault;
+      const countBlessing = data.get('count_blessing')?.toString()?.trim() || t.blessingDefault;
+      const prayerRequest = data.get('prayer_request')?.toString()?.trim() || t.prayerDefault;
       const aob = data.get('aob')?.toString()?.trim() || '';
 
       const devotionTitle = data.get('devotion_title')?.toString()?.trim() || todayDevotion.title;
@@ -47,7 +52,7 @@ if (Astro.request.method === 'POST') {
         created_at: new Date().toISOString()
       });
 
-      successMessage = 'Your check-in has been recorded! Thank you for sharing with the family.';
+      successMessage = t.checkInSuccess;
     }
   } catch (err: any) {
     errorMessage = err.message || 'An error occurred while submitting your check-in.';
@@ -55,13 +60,13 @@ if (Astro.request.method === 'POST') {
 }
 
 const STATE_OPTIONS = [
-  { value: 'Very Unpleasant', label: 'Very Unpleasant', emoji: '😣', bg: 'bg-red-950/60 text-red-200 border-red-800' },
-  { value: 'Unpleasant', label: 'Unpleasant', emoji: '🙁', bg: 'bg-orange-950/60 text-orange-200 border-orange-800' },
-  { value: 'Slightly Unpleasant', label: 'Slightly Unpleasant', emoji: '😕', bg: 'bg-amber-950/60 text-amber-200 border-amber-800' },
-  { value: 'Neutral', label: 'Neutral', emoji: '😐', bg: 'bg-slate-800 text-slate-200 border-slate-700' },
-  { value: 'Slightly Pleasant', label: 'Slightly Pleasant', emoji: '🙂', bg: 'bg-teal-950/60 text-teal-200 border-teal-800' },
-  { value: 'Pleasant', label: 'Pleasant', emoji: '😊', bg: 'bg-emerald-950/60 text-emerald-200 border-emerald-800', isDefault: true },
-  { value: 'Very Pleasant', label: 'Very Pleasant', emoji: '😄', bg: 'bg-sky-950/60 text-sky-200 border-sky-800' },
+  { value: 'Very Unpleasant', label: t.moodVeryUnpleasant, emoji: '😣' },
+  { value: 'Unpleasant', label: t.moodUnpleasant, emoji: '🙁' },
+  { value: 'Slightly Unpleasant', label: t.moodSlightlyUnpleasant, emoji: '😕' },
+  { value: 'Neutral', label: t.moodNeutral, emoji: '😐' },
+  { value: 'Slightly Pleasant', label: t.moodSlightlyPleasant, emoji: '🙂' },
+  { value: 'Pleasant', label: t.moodPleasant, emoji: '😊', isDefault: true },
+  { value: 'Very Pleasant', label: t.moodVeryPleasant, emoji: '😄' },
 ];
 ---
 
@@ -77,43 +82,46 @@ const STATE_OPTIONS = [
             ☀️
           </span>
           <span class="text-lg sm:text-xl font-black bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-300 bg-clip-text text-transparent">
-            Brand New Everyday
+            {t.appName}
           </span>
         </a>
         <span class="hidden sm:inline-block text-xs bg-slate-700/80 text-slate-300 px-2.5 py-0.5 rounded-full font-medium border border-slate-600">
-          Family Check-In
+          {t.familyCheckIn}
         </span>
       </div>
 
-      <nav class="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm font-semibold">
+      <nav class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-semibold">
+        <!-- Language Selector -->
+        <LanguageSelector currentLang={lang} />
+
         <a
           href="/guide"
           class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-600/80 transition flex items-center space-x-1.5"
           title="How to Use & Family Purpose"
         >
           <span>💡</span>
-          <span>Guide</span>
+          <span>{t.guide}</span>
         </a>
         <a
           href="/history"
           class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-600/80 transition flex items-center space-x-1.5"
         >
           <span>📜</span>
-          <span>History</span>
+          <span>{t.history}</span>
         </a>
         {user.is_admin === 1 && (
           <a
             href="/admin"
             class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 rounded-xl border border-indigo-700/60 transition"
           >
-            Admin
+            {t.admin}
           </a>
         )}
         <a
           href="/api/logout"
           class="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-xl transition shadow-sm"
         >
-          Logout
+          {t.logout}
         </a>
       </nav>
     </header>
@@ -132,7 +140,7 @@ const STATE_OPTIONS = [
             href="/history"
             class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition shrink-0"
           >
-            View in History →
+            {t.viewInHistory}
           </a>
         </div>
       )}
@@ -149,13 +157,13 @@ const STATE_OPTIONS = [
         <div class="flex items-center justify-between gap-3">
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="text-base sm:text-lg font-bold text-white">Welcome back, {user.username}!</span>
+              <span class="text-base sm:text-lg font-bold text-white">{t.welcomeBack}, {user.username}!</span>
               {user.is_admin === 1 && (
-                <span class="bg-blue-950 text-blue-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-blue-800">Admin</span>
+                <span class="bg-blue-950 text-blue-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-blue-800">{t.admin}</span>
               )}
             </div>
             <p class="text-xs sm:text-sm text-slate-400">
-              A peaceful place for our family to stay connected, encourage one another, and grow in Christ.
+              {t.welcomeSubtitle}
             </p>
           </div>
 
@@ -164,43 +172,54 @@ const STATE_OPTIONS = [
             type="button"
             id="toggle-guide-btn"
             class="px-3 py-1.5 bg-slate-700/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-600 transition shrink-0 flex items-center space-x-1.5"
+            data-label-show={t.howToUse}
+            data-label-hide={t.hideGuide}
           >
             <span id="guide-toggle-icon">📖</span>
-            <span id="guide-toggle-text">How to Use</span>
+            <span id="guide-toggle-text">{t.howToUse}</span>
           </button>
         </div>
 
         <!-- Collapsible Guide Body -->
         <div id="guide-collapsible" class="hidden mt-4 pt-4 border-t border-slate-700/70 space-y-3.5">
           <div class="p-3.5 bg-blue-950/40 border border-blue-800/40 rounded-xl text-blue-200 text-xs sm:text-sm leading-relaxed">
-            ❤️ <strong class="text-white">Our Family Purpose:</strong> We check in so everyone knows each other is safe, cared for, and doing well. There is <span class="text-emerald-300 font-bold">never any pressure</span> to write long essays—a simple 30-second check-in using the friendly defaults is more than enough!
+            ❤️ <strong class="text-white">{t.familyPurposeTitle}:</strong> {t.familyPurposeText}
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-300">
             <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
-              <strong class="text-white">1. Check Mood:</strong> Select how your state of mind is today (defaults to <em>Pleasant</em>).
+              <strong class="text-white">{t.step1Title}</strong> {t.step1Desc}
             </div>
             <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
-              <strong class="text-white">2. Share Freely:</strong> Edit or keep default notes on Struggle, Blessing, or Prayer.
+              <strong class="text-white">{t.step2Title}</strong> {t.step2Desc}
             </div>
             <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
-              <strong class="text-white">3. Daily Devotion:</strong> Read today's Reformed reflection on God's providence and care.
+              <strong class="text-white">{t.step3Title}</strong> {t.step3Desc}
             </div>
             <div class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
-              <strong class="text-white">4. Auto-Save & Security:</strong> Drafts save as you type; logs out after 10m of inactivity for privacy.
+              <strong class="text-white">{t.step4Title}</strong> {t.step4Desc}
             </div>
           </div>
 
           <div class="text-right">
             <a href="/guide" class="text-xs text-blue-400 hover:text-blue-300 font-semibold underline">
-              View Detailed Family Guide →
+              {t.viewFullGuide} →
             </a>
           </div>
         </div>
       </section>
 
       <!-- Check-In Form Card -->
-      <form method="POST" id="checkin-form" class="space-y-6">
+      <form
+        method="POST"
+        id="checkin-form"
+        class="space-y-6"
+        data-default-struggle={t.struggleDefault}
+        data-default-blessing={t.blessingDefault}
+        data-default-prayer={t.prayerDefault}
+        data-draft-saved={t.draftSaved}
+        data-defaults-restored={t.defaultsRestored}
+      >
         <input type="hidden" name="action" value="submit_checkin" />
         <input type="hidden" name="devotion_title" value={todayDevotion.title} />
         <input type="hidden" name="devotion_passage" value={todayDevotion.passage} />
@@ -213,20 +232,20 @@ const STATE_OPTIONS = [
             <div>
               <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center space-x-2">
                 <span>📝</span>
-                <span>Daily Family Check-In</span>
+                <span>{t.dailyCheckInTitle}</span>
               </h1>
               <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
-                Take a moment to record your heart and mind today.
+                {t.dailyCheckInSubtitle}
               </p>
             </div>
 
             <!-- Auto-Save Status & Live Local Date/Time Badge -->
             <div class="flex items-center space-x-2.5">
               <span id="draft-status" class="text-xs text-emerald-400 font-medium px-2 py-1 bg-emerald-950/60 border border-emerald-800/60 rounded-lg transition-opacity duration-300 opacity-0">
-                Draft saved ✓
+                {t.draftSaved}
               </span>
               <div id="live-datetime" class="px-3 py-1.5 bg-slate-900/80 border border-slate-700 rounded-xl text-xs font-mono text-slate-300 text-center shadow-inner">
-                Loading date...
+                {t.loadingDate}
               </div>
             </div>
           </div>
@@ -235,9 +254,9 @@ const STATE_OPTIONS = [
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                State of Mind <span class="text-slate-500 font-normal lowercase">(how are you feeling today?)</span>
+                {t.stateOfMindLabel} <span class="text-slate-500 font-normal lowercase">{t.stateOfMindHint}</span>
               </label>
-              <span class="text-xs text-slate-400">Default: <strong class="text-emerald-400">Pleasant</strong></span>
+              <span class="text-xs text-slate-400">{t.defaultPrefix}: <strong class="text-emerald-400">{t.moodPleasant}</strong></span>
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
@@ -265,9 +284,9 @@ const STATE_OPTIONS = [
               <div class="flex items-center justify-between">
                 <label for="field-struggle" class="text-xs font-bold uppercase tracking-wider text-rose-300 flex items-center space-x-1.5">
                   <span>🥀</span>
-                  <span>Struggle</span>
+                  <span>{t.struggleLabel}</span>
                 </label>
-                <span class="text-[11px] text-slate-400">Default: "None"</span>
+                <span class="text-[11px] text-slate-400">{t.defaultPrefix}: "{t.struggleDefault}"</span>
               </div>
               <div class="relative">
                 <textarea
@@ -275,8 +294,8 @@ const STATE_OPTIONS = [
                   name="struggle"
                   rows="3"
                   class="w-full px-4 py-3 bg-rose-950/20 border border-rose-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400/80 focus:border-rose-400 shadow-inner resize-y transition min-h-[90px]"
-                  placeholder="Share any difficulty or hardship, or keep as 'None'..."
-                >None</textarea>
+                  placeholder={t.strugglePlaceholder}
+                >{t.struggleDefault}</textarea>
               </div>
             </div>
 
@@ -285,9 +304,9 @@ const STATE_OPTIONS = [
               <div class="flex items-center justify-between">
                 <label for="field-blessing" class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center space-x-1.5">
                   <span>✨</span>
-                  <span>Count Blessing</span>
+                  <span>{t.blessingLabel}</span>
                 </label>
-                <span class="text-[11px] text-slate-400">Default: "I'm loved by God"</span>
+                <span class="text-[11px] text-slate-400">{t.defaultPrefix}: "{t.blessingDefault}"</span>
               </div>
               <div class="relative">
                 <textarea
@@ -295,8 +314,8 @@ const STATE_OPTIONS = [
                   name="count_blessing"
                   rows="3"
                   class="w-full px-4 py-3 bg-amber-950/20 border border-amber-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/80 focus:border-amber-400 shadow-inner resize-y transition min-h-[90px]"
-                  placeholder="What are you thankful for today?"
-                >I'm loved by God</textarea>
+                  placeholder={t.blessingPlaceholder}
+                >{t.blessingDefault}</textarea>
               </div>
             </div>
 
@@ -305,9 +324,9 @@ const STATE_OPTIONS = [
               <div class="flex items-center justify-between">
                 <label for="field-prayer" class="text-xs font-bold uppercase tracking-wider text-sky-300 flex items-center space-x-1.5">
                   <span>🙏</span>
-                  <span>Prayer Request</span>
+                  <span>{t.prayerLabel}</span>
                 </label>
-                <span class="text-[11px] text-slate-400">Default: "Lord's Prayer"</span>
+                <span class="text-[11px] text-slate-400">{t.defaultPrefix}: "{t.prayerDefault}"</span>
               </div>
               <div class="relative">
                 <textarea
@@ -315,8 +334,8 @@ const STATE_OPTIONS = [
                   name="prayer_request"
                   rows="3"
                   class="w-full px-4 py-3 bg-sky-950/20 border border-sky-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400/80 focus:border-sky-400 shadow-inner resize-y transition min-h-[90px]"
-                  placeholder="How can your family pray for you today?"
-                >Lord's Prayer</textarea>
+                  placeholder={t.prayerPlaceholder}
+                >{t.prayerDefault}</textarea>
               </div>
             </div>
 
@@ -325,9 +344,9 @@ const STATE_OPTIONS = [
               <div class="flex items-center justify-between">
                 <label for="field-aob" class="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center space-x-1.5">
                   <span>💬</span>
-                  <span>Any Other Business</span>
+                  <span>{t.aobLabel}</span>
                 </label>
-                <span class="text-[11px] text-slate-400">(Optional)</span>
+                <span class="text-[11px] text-slate-400">{t.aobOptional}</span>
               </div>
               <div class="relative">
                 <textarea
@@ -335,7 +354,7 @@ const STATE_OPTIONS = [
                   name="aob"
                   rows="3"
                   class="w-full px-4 py-3 bg-emerald-950/20 border border-emerald-500/40 rounded-2xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/80 focus:border-emerald-400 shadow-inner resize-y transition min-h-[90px]"
-                  placeholder="Family schedule, shoutouts, or any extra notes..."
+                  placeholder={t.aobPlaceholder}
                 ></textarea>
               </div>
             </div>
@@ -347,7 +366,7 @@ const STATE_OPTIONS = [
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center space-x-2">
                 <span>📖</span>
-                <span>Daily Reformed Devotion</span>
+                <span>{t.dailyDevotionBadge}</span>
               </span>
               <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-700">
                 {todayDevotion.passage}
@@ -368,7 +387,7 @@ const STATE_OPTIONS = [
             </p>
 
             <div class="pt-2 text-xs text-indigo-200/80 bg-indigo-900/30 border border-indigo-700/40 rounded-xl p-3">
-              <strong class="text-indigo-200">Prayer:</strong> {todayDevotion.prayer}
+              <strong class="text-indigo-200">{t.prayerBadge}:</strong> {todayDevotion.prayer}
             </div>
           </div>
 
@@ -379,7 +398,7 @@ const STATE_OPTIONS = [
               id="reset-defaults-btn"
               class="w-full sm:w-auto px-4 py-3 text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-xl transition duration-150 border border-transparent hover:border-slate-700"
             >
-              Reset to Defaults
+              {t.resetDefaults}
             </button>
 
             <button
@@ -387,7 +406,7 @@ const STATE_OPTIONS = [
               class="w-full sm:w-auto min-w-[200px] min-h-[48px] py-3.5 px-8 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 transition-all duration-200 transform active:scale-95 flex items-center justify-center space-x-2"
             >
               <span>☀️</span>
-              <span>Check In</span>
+              <span>{t.submitCheckIn}</span>
             </button>
           </div>
 
@@ -424,22 +443,26 @@ const STATE_OPTIONS = [
   const guideToggleText = document.getElementById('guide-toggle-text');
 
   if (toggleGuideBtn && guideCollapsible) {
+    const labelShow = toggleGuideBtn.getAttribute('data-label-show') || 'How to Use';
+    const labelHide = toggleGuideBtn.getAttribute('data-label-hide') || 'Hide Guide';
+
     const isGuideOpen = localStorage.getItem('family_checkin_guide_open') === 'true';
     if (isGuideOpen) {
       guideCollapsible.classList.remove('hidden');
-      if (guideToggleText) guideToggleText.textContent = 'Hide Guide';
+      if (guideToggleText) guideToggleText.textContent = labelHide;
     }
 
     toggleGuideBtn.addEventListener('click', () => {
       const isHidden = guideCollapsible.classList.toggle('hidden');
       if (guideToggleText) {
-        guideToggleText.textContent = isHidden ? 'How to Use' : 'Hide Guide';
+        guideToggleText.textContent = isHidden ? labelShow : labelHide;
       }
       localStorage.setItem('family_checkin_guide_open', (!isHidden).toString());
     });
   }
 
   // Auto-Save Draft to LocalStorage
+  const form = document.getElementById('checkin-form');
   const DRAFT_KEY = 'family_checkin_draft_v1';
   const struggleInput = document.getElementById('field-struggle') as HTMLTextAreaElement | null;
   const blessingInput = document.getElementById('field-blessing') as HTMLTextAreaElement | null;
@@ -516,27 +539,32 @@ const STATE_OPTIONS = [
 
   // Reset to Defaults Button
   const resetBtn = document.getElementById('reset-defaults-btn');
-  if (resetBtn) {
+  if (resetBtn && form) {
+    const defStruggle = form.getAttribute('data-default-struggle') || 'None';
+    const defBlessing = form.getAttribute('data-default-blessing') || "I'm loved by God";
+    const defPrayer = form.getAttribute('data-default-prayer') || "Lord's Prayer";
+    const defRestoredMsg = form.getAttribute('data-defaults-restored') || 'Defaults restored';
+    const draftSavedMsg = form.getAttribute('data-draft-saved') || 'Draft saved ✓';
+
     resetBtn.addEventListener('click', () => {
       setSelectedMood('Pleasant');
-      if (struggleInput) struggleInput.value = 'None';
-      if (blessingInput) blessingInput.value = "I'm loved by God";
-      if (prayerInput) prayerInput.value = "Lord's Prayer";
+      if (struggleInput) struggleInput.value = defStruggle;
+      if (blessingInput) blessingInput.value = defBlessing;
+      if (prayerInput) prayerInput.value = defPrayer;
       if (aobInput) aobInput.value = '';
       localStorage.removeItem(DRAFT_KEY);
       if (draftStatus) {
-        draftStatus.textContent = 'Defaults restored';
+        draftStatus.textContent = defRestoredMsg;
         draftStatus.classList.remove('opacity-0');
         setTimeout(() => {
           draftStatus.classList.add('opacity-0');
-          draftStatus.textContent = 'Draft saved ✓';
+          draftStatus.textContent = draftSavedMsg;
         }, 2000);
       }
     });
   }
 
   // Clear draft on successful form submission
-  const form = document.getElementById('checkin-form');
   if (form) {
     form.addEventListener('submit', () => {
       localStorage.removeItem(DRAFT_KEY);

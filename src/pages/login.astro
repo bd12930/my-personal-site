@@ -2,11 +2,16 @@
 import Layout from '../layouts/Layout.astro';
 import { env } from 'cloudflare:workers';
 import { getSessionUser, setSession } from '../lib/auth';
-import { verifyPassword } from '../lib/db';
+import { verifyPassword, getUserByUsername } from '../lib/db';
+import LanguageSelector from '../components/LanguageSelector.astro';
+import { resolveLang, getTranslations } from '../lib/i18n';
 
 const user = await getSessionUser(Astro);
 if (user) {
-  return Astro.redirect('/login-success');
+  if (user.is_admin === 1) {
+    return Astro.redirect('/login-success');
+  }
+  return Astro.redirect('/');
 }
 
 let statusMessage = '';
@@ -32,9 +37,23 @@ if (Astro.request.method === 'POST') {
       const isValid = await verifyPassword(d1, username, password);
       if (isValid) {
         setSession(Astro, username);
+        const loggedUser = await getUserByUsername(d1, username);
+        if (loggedUser?.preferred_lang) {
+          Astro.cookies.set('site_lang', loggedUser.preferred_lang, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 365,
+            sameSite: 'lax'
+          });
+        }
         statusType = 'success';
         statusMessage = 'Login Successful! Redirecting...';
-        return Astro.redirect('/login-success');
+
+        // For standard users only, bring to Go To Daily Check-In page directly upon login except admin users
+        if (loggedUser && loggedUser.is_admin === 1) {
+          return Astro.redirect('/login-success');
+        } else {
+          return Astro.redirect('/');
+        }
       } else {
         statusType = 'error';
         statusMessage = 'Login Unsuccessful: Invalid username or password.';
@@ -52,7 +71,7 @@ if (Astro.request.method === 'POST') {
     <!-- Centered Login Dialog Box -->
     <div class="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-10 border border-sky-200/80 transform transition-all duration-300">
       
-      <!-- Brand Header -->
+      <LanguageSelector currentLang={resolveLang(Astro.cookies)} />
       <div class="text-center mb-8">
         <h1 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
           Brand New Everyday

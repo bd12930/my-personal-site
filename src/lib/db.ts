@@ -20,7 +20,8 @@ function getLocalDb() {
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
-        is_admin INTEGER NOT NULL DEFAULT 0
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        preferred_lang TEXT NOT NULL DEFAULT 'en'
       );
       CREATE TABLE IF NOT EXISTS check_ins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,6 +41,9 @@ function getLocalDb() {
       CREATE INDEX IF NOT EXISTS idx_check_ins_user_id ON check_ins(user_id);
       CREATE INDEX IF NOT EXISTS idx_check_ins_created_at ON check_ins(created_at);
     `);
+    try {
+      localDb.exec("ALTER TABLE users ADD COLUMN preferred_lang TEXT NOT NULL DEFAULT 'en';");
+    } catch {}
     seedLocalUsers(localDb);
   }
   return localDb;
@@ -82,6 +86,7 @@ export interface User {
   id: number;
   username: string;
   is_admin: number;
+  preferred_lang?: string;
 }
 
 // Ensure D1 has default users seeded
@@ -96,9 +101,14 @@ export async function seedD1IfNeeded(d1: any) {
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
-        is_admin INTEGER NOT NULL DEFAULT 0
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        preferred_lang TEXT NOT NULL DEFAULT 'en'
       )
     `).run();
+
+    try {
+      await d1.prepare("ALTER TABLE users ADD COLUMN preferred_lang TEXT NOT NULL DEFAULT 'en'").run();
+    } catch {}
 
     await d1.prepare(`
       CREATE TABLE IF NOT EXISTS check_ins (
@@ -149,11 +159,11 @@ export async function getUserByUsername(d1: any, username: string) {
   const db = getD1(d1);
   if (db) {
     await seedD1IfNeeded(db);
-    const row = await db.prepare('SELECT id, username, password_hash, salt, is_admin FROM users WHERE username = ?').bind(username).first();
+    const row = await db.prepare('SELECT id, username, password_hash, salt, is_admin, preferred_lang FROM users WHERE username = ?').bind(username).first();
     return row;
   } else {
     const local = getLocalDb();
-    const stmt = local.prepare('SELECT id, username, password_hash, salt, is_admin FROM users WHERE username = ?');
+    const stmt = local.prepare('SELECT id, username, password_hash, salt, is_admin, preferred_lang FROM users WHERE username = ?');
     return stmt.get(username) as any;
   }
 }
@@ -162,11 +172,11 @@ export async function getAllUsers(d1: any): Promise<User[]> {
   const db = getD1(d1);
   if (db) {
     await seedD1IfNeeded(db);
-    const { results } = await db.prepare('SELECT id, username, is_admin FROM users ORDER BY username ASC').all();
+    const { results } = await db.prepare('SELECT id, username, is_admin, preferred_lang FROM users ORDER BY username ASC').all();
     return results as User[];
   } else {
     const local = getLocalDb();
-    const stmt = local.prepare('SELECT id, username, is_admin FROM users ORDER BY username ASC');
+    const stmt = local.prepare('SELECT id, username, is_admin, preferred_lang FROM users ORDER BY username ASC');
     return stmt.all() as User[];
   }
 }
@@ -183,15 +193,29 @@ export async function updateUserPassword(d1: any, username: string, newPassword:
   }
 }
 
-export async function createUser(d1: any, username: string, password: string, isAdmin: boolean = false) {
+export async function updateUserLanguage(d1: any, username: string, lang: string): Promise<boolean> {
+  const db = getD1(d1);
+  if (db) {
+    await seedD1IfNeeded(db);
+    const res = await db.prepare('UPDATE users SET preferred_lang = ? WHERE username = ?').bind(lang, username).run();
+    return (res?.meta?.changes ?? 0) > 0;
+  } else {
+    const local = getLocalDb();
+    const stmt = local.prepare('UPDATE users SET preferred_lang = ? WHERE username = ?');
+    const res = stmt.run(lang, username);
+    return res.changes > 0;
+  }
+}
+
+export async function createUser(d1: any, username: string, password: string, isAdmin: boolean = false, preferredLang: string = 'en') {
   const { hash, salt } = hashPassword(password);
   const db = getD1(d1);
   if (db) {
-    await db.prepare('INSERT INTO users (username, password_hash, salt, is_admin) VALUES (?, ?, ?, ?)').bind(username, hash, salt, isAdmin ? 1 : 0).run();
+    await db.prepare('INSERT INTO users (username, password_hash, salt, is_admin, preferred_lang) VALUES (?, ?, ?, ?, ?)').bind(username, hash, salt, isAdmin ? 1 : 0, preferredLang).run();
   } else {
     const local = getLocalDb();
-    const stmt = local.prepare('INSERT INTO users (username, password_hash, salt, is_admin) VALUES (?, ?, ?, ?)');
-    stmt.run(username, hash, salt, isAdmin ? 1 : 0);
+    const stmt = local.prepare('INSERT INTO users (username, password_hash, salt, is_admin, preferred_lang) VALUES (?, ?, ?, ?, ?)');
+    stmt.run(username, hash, salt, isAdmin ? 1 : 0, preferredLang);
   }
 }
 
