@@ -5,3 +5,9 @@ compatibility_date = "2026-11-12"
 binding = "DB"
 database_name = "my-personal-site-db"
 database_id = "fdff053f-4351-4d95-a18c-b01142bfafbe"
+
+[observability]
+  [observability.logs]
+    enabled = false
+    invocation_logs = true
+
