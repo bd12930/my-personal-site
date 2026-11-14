@@ -190,13 +190,14 @@ const MOOD_LABELS: Record<string, string> = {
           const moodLabel = MOOD_LABELS[entry.state_of_mind] || entry.state_of_mind;
 
           const dateObj = new Date(entry.created_at);
-          const dateStr = dateObj.toLocaleDateString(lang === 'id' ? 'id-ID' : lang === 'zh' ? 'zh-CN' : 'en-US', {
+          const locale = lang === 'id' ? 'id-ID' : lang === 'zh' ? 'zh-CN' : 'en-US';
+          const dateStr = dateObj.toLocaleDateString(locale, {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
             year: 'numeric'
           });
-          const timeStr = dateObj.toLocaleTimeString(lang === 'id' ? 'id-ID' : lang === 'zh' ? 'zh-CN' : 'en-US', {
+          const timeStr = dateObj.toLocaleTimeString(locale, {
             hour: '2-digit',
             minute: '2-digit'
           });
@@ -222,7 +223,7 @@ const MOOD_LABELS: Record<string, string> = {
                       )}
                     </div>
                     <span class="text-xs text-slate-400 font-mono">
-                      {dateStr} • {timeStr}
+                      <span data-recorded-at={entry.created_at} data-locale={locale}>{dateStr} • {timeStr}</span>
                     </span>
                   </div>
                 </div>
@@ -340,3 +341,26 @@ const MOOD_LABELS: Record<string, string> = {
     </main>
   </div>
 </Layout>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-recorded-at]').forEach((element) => {
+    const recordedAt = element.dataset.recordedAt;
+    if (!recordedAt) return;
+
+    const date = new Date(recordedAt);
+    if (Number.isNaN(date.getTime())) return;
+
+    const locale = element.dataset.locale;
+    const dateText = new Intl.DateTimeFormat(locale, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(date);
+    const timeText = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+    element.textContent = `${dateText} • ${timeText}`;
+  });
+</script>

@@ -40,6 +40,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const countBlessing = body.count_blessing?.toString()?.trim() || "I'm loved by God";
     const prayerRequest = body.prayer_request?.toString()?.trim() || "Lord's Prayer";
     const aob = body.aob?.toString()?.trim() || '';
+    const submittedAt = body.created_at?.toString();
+    const parsedAt = submittedAt ? new Date(submittedAt) : null;
 
     const d1 = (env as any)?.DB;
     const newId = await createCheckIn(d1, {
@@ -53,7 +55,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       devotion_title: body.devotion_title?.toString() || null,
       devotion_passage: body.devotion_passage?.toString() || null,
       devotion_text: body.devotion_text?.toString() || null,
-      created_at: new Date().toISOString()
+      created_at: parsedAt && !Number.isNaN(parsedAt.getTime()) ? parsedAt.toISOString() : new Date().toISOString()
     });
 
     return new Response(JSON.stringify({ success: true, id: newId }), {

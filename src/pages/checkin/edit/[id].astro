@@ -115,7 +115,7 @@ const STATE_OPTIONS = [
             <span>Edit Your Check-In</span>
           </h1>
           <p class="text-xs sm:text-sm text-slate-400 mt-1">
-            Updating check-in for <span class="font-semibold text-slate-300">{entry.username}</span> recorded on {new Date(entry.created_at).toLocaleString()}.
+            Updating check-in for <span class="font-semibold text-slate-300">{entry.username}</span> recorded on <span id="recorded-at" data-recorded-at={entry.created_at}>{new Date(entry.created_at).toLocaleString()}</span>.
           </p>
         </div>
 
@@ -223,3 +223,20 @@ const STATE_OPTIONS = [
     </main>
   </div>
 </Layout>
+
+<script>
+  const recordedAtElement = document.getElementById('recorded-at');
+  const recordedAt = recordedAtElement?.dataset.recordedAt;
+  if (recordedAtElement && recordedAt) {
+    const date = new Date(recordedAt);
+    if (!Number.isNaN(date.getTime())) {
+      recordedAtElement.textContent = new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    }
+  }
+</script>
